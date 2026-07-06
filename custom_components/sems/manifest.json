@@ -1,0 +1,13 @@
+{
+  "domain": "sems",
+  "name": "SEMS - Simple Energy Management System",
+  "codeowners": ["@NoobOnTour024"],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/NoobOnTour024/HA-SEMS",
+  "integration_type": "service",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/NoobOnTour024/HA-SEMS/issues",
+  "requirements": [],
+  "version": "0.1.0"
+}

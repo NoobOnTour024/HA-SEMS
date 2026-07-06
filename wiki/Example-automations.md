@@ -1,0 +1,114 @@
+# Example automations
+
+SEMS only calculates — *you* decide what happens with the numbers. Below
+are ready-to-paste examples, from simple to smart. Replace the entity ids
+of switches with your own.
+
+## 1. Run the dishwasher during one of the day's best hours
+
+`sensor.sems_rank` ranks the current hour from 1 (worst) to 24 (best), so
+"above 19" means: one of the **5 best hours** of the coming day.
+
+```yaml
+automation:
+  - alias: "Dishwasher during a top-5 hour"
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.sems_rank
+        above: 19
+    condition:
+      # Only if you loaded it and flipped this helper on:
+      - condition: state
+        entity_id: input_boolean.dishwasher_ready
+        state: "on"
+    action:
+      - service: switch.turn_on
+        target:
+          entity_id: switch.dishwasher
+      - service: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.dishwasher_ready
+```
+
+> Tip: create the `input_boolean.dishwasher_ready` helper via Settings →
+> Devices & services → Helpers. Flip it on when you load the machine; SEMS
+> picks the moment.
+
+## 2. Turn the PV inverter off when power is free
+
+When the all-in price is negative you *pay* to export. Better to stop
+producing for a while.
+
+```yaml
+automation:
+  - alias: "PV inverter off during free power"
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.sems_free_power
+        to: "on"
+    action:
+      - service: switch.turn_off
+        target:
+          entity_id: switch.pv_inverter
+
+  - alias: "PV inverter back on after free power"
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.sems_free_power
+        to: "off"
+    action:
+      - service: switch.turn_on
+        target:
+          entity_id: switch.pv_inverter
+```
+
+## 3. Heat the boiler in the top half of the day
+
+The relative score is a percentage: 100% = the best hour of the window.
+
+```yaml
+automation:
+  - alias: "Boiler when the hour is better than average"
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.sems_relative_score
+        above: 50
+        for: "00:05:00"
+    action:
+      - service: switch.turn_on
+        target:
+          entity_id: switch.boiler
+```
+
+## 4. Charge the EV only during genuinely good hours
+
+Combine an absolute minimum score with free-power override:
+
+```yaml
+automation:
+  - alias: "EV charging during good hours"
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.sems_score
+        above: 70
+      - platform: state
+        entity_id: binary_sensor.sems_free_power
+        to: "on"
+    action:
+      - service: switch.turn_on
+        target:
+          entity_id: switch.ev_charger
+```
+
+## Notes for automation builders
+
+- **Fewer than 24 hours known?** Before ~13:00 CET, tomorrow's prices
+  aren't published yet. Rank "above 19" can then never trigger if only 18
+  hours are known. Check the `hours_available` attribute on
+  `sensor.sems_rank` if your automation must also work in the morning, or
+  use `sensor.sems_relative_score` instead (it always spans 0–100%).
+- **Everything updates hourly.** Numeric-state triggers fire when the value
+  crosses the threshold, which happens on the hour.
+- **The `scores_24h` attribute** on `sensor.sems_score` contains the whole
+  window, including *future* hours — advanced users can template on it,
+  e.g. "is a much better hour coming within 3 hours?".

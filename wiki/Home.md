@@ -1,0 +1,44 @@
+# Welcome to the SEMS wiki
+
+**SEMS (Simple Energy Management System)** is a Home Assistant integration
+that tells you, for every hour of the coming day, how good that hour is for
+using electricity. It combines two things you probably already have in Home
+Assistant:
+
+1. your **dynamic electricity prices** (from Nord Pool, EnergyZero,
+   Zonneplan, ...), and
+2. your **solar production forecast** (from Forecast.Solar, Solcast, ...).
+
+Out of those, SEMS calculates one simple number per hour: the **score**.
+High score = cheap and/or sunny = good moment to run big appliances. Low
+score = expensive and dark = better to wait.
+
+SEMS is deliberately simple: no machine learning, no cloud, no external
+connections. It reads two sensors, does honest math, and gives you numbers
+you can build automations on.
+
+## Where to go
+
+| Page | Read it when you want to... |
+|---|---|
+| [Installation](Installation.md) | Install SEMS through HACS, step by step. |
+| [Configuration](Configuration.md) | Understand every setting (and why the defaults are fine). |
+| [How the score works](How-the-score-works.md) | Understand the calculation in plain language. |
+| [Entities](Entities.md) | Know what every sensor means and which attributes exist. |
+| [Example automations](Example-automations.md) | Let SEMS actually control things. |
+| [Check that it works](Check-that-it-works.md) | Verify your setup with your own eyes. |
+| [FAQ](FAQ.md) | Quick answers to common questions. |
+
+## The one-minute summary
+
+- **You pick two sensors during setup. Everything else has working
+  defaults.** SEMS works immediately.
+- Every hour gets a **score from 0 to 100**. Above 100 means the power is
+  effectively free (negative prices).
+- The **balance slider** decides what "good" means: 100 = cheapest hours
+  win, 0 = sunniest hours win, 50 = a fair mix (default).
+- `sensor.sems_rank` tells you where the current hour ranks in the coming
+  24 (1 = worst, 24 = best). "Rank 20 or higher" simply means "one of the 5
+  best hours of the day" — perfect for automations.
+- `binary_sensor.sems_free_power` switches ON when power is free — useful
+  to stop exporting solar power when exporting costs you money.

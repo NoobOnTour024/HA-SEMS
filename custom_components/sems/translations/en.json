@@ -1,0 +1,77 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Source entities",
+        "description": "Select the entities SEMS should read. SEMS never fetches data itself; it only reads these existing sensors.",
+        "data": {
+          "price_entity": "Electricity price entity",
+          "pv_forecast_entity": "PV forecast entity (optional)"
+        },
+        "data_description": {
+          "price_entity": "A sensor with hourly electricity prices, e.g. from Nord Pool, EnergyZero or Zonneplan.",
+          "pv_forecast_entity": "A sensor with an hourly solar production forecast, e.g. from Forecast.Solar or Solcast. Leave empty if you have no solar panels."
+        }
+      },
+      "settings": {
+        "title": "Prices and taxes",
+        "description": "The defaults work out of the box (Dutch 2026 tax values). Only change them if your contract differs. All settings can be changed later via Configure.",
+        "data": {
+          "price_type": "What kind of price does the source entity provide?",
+          "supplier_markup": "Supplier markup (excl. VAT)",
+          "energy_tax": "Energy tax (excl. VAT)",
+          "vat_percent": "VAT",
+          "export_fee": "Export fee (feed-in costs)",
+          "pv_capacity": "Solar installation size (0 = automatic)",
+          "price_free_threshold": "Free power threshold (all-in price)",
+          "debug_mode": "Debug mode (extra diagnostics sensor)"
+        },
+        "data_description": {
+          "price_type": "All-in: the price already includes taxes and VAT (most common). Raw: the bare market price, SEMS adds the taxes below.",
+          "supplier_markup": "What your supplier charges per kWh on top of the market price.",
+          "energy_tax": "The energy tax per kWh (Dutch 'energiebelasting'). Default is the Dutch 2026 value.",
+          "vat_percent": "The VAT percentage applied to price, markup and tax.",
+          "export_fee": "What exporting a kWh costs you ('terugleverkosten'). Exporting earns the bare market price minus this fee.",
+          "pv_capacity": "Total peak power of your solar panels in Watts, e.g. 5000 for a 5 kWp system. Used to estimate how much of your consumption your own solar power covers per hour. 0 = automatic: assume the sunniest hour of the day covers it.",
+          "price_free_threshold": "Below this all-in price, power counts as free: the score goes above 100 and the free-power sensor turns on.",
+          "debug_mode": "Adds sensor.sems_diagnostics showing exactly what data SEMS found, so you can verify everything works. Turn off once you trust the numbers."
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "SEMS settings",
+        "data": {
+          "price_type": "What kind of price does the source entity provide?",
+          "supplier_markup": "Supplier markup (excl. VAT)",
+          "energy_tax": "Energy tax (excl. VAT)",
+          "vat_percent": "VAT",
+          "export_fee": "Export fee (feed-in costs)",
+          "pv_capacity": "Solar installation size (0 = automatic)",
+          "price_free_threshold": "Free power threshold (all-in price)",
+          "debug_mode": "Debug mode (extra diagnostics sensor)"
+        },
+        "data_description": {
+          "price_type": "All-in: the price already includes taxes and VAT (most common). Raw: the bare market price, SEMS adds the taxes below.",
+          "supplier_markup": "What your supplier charges per kWh on top of the market price.",
+          "energy_tax": "The energy tax per kWh (Dutch 'energiebelasting'). Default is the Dutch 2026 value.",
+          "vat_percent": "The VAT percentage applied to price, markup and tax.",
+          "export_fee": "What exporting a kWh costs you ('terugleverkosten'). Exporting earns the bare market price minus this fee.",
+          "pv_capacity": "Total peak power of your solar panels in Watts, e.g. 5000 for a 5 kWp system. Used to estimate how much of your consumption your own solar power covers per hour. 0 = automatic: assume the sunniest hour of the day covers it.",
+          "price_free_threshold": "Below this all-in price, power counts as free: the score goes above 100 and the free-power sensor turns on.",
+          "debug_mode": "Adds sensor.sems_diagnostics showing exactly what data SEMS found, so you can verify everything works. Turn off once you trust the numbers."
+        }
+      }
+    }
+  },
+  "selector": {
+    "price_type": {
+      "options": {
+        "all_in": "All-in (taxes and VAT already included)",
+        "raw": "Raw market price (SEMS adds taxes and VAT)"
+      }
+    }
+  }
+}
