@@ -92,6 +92,9 @@ series:
 Green tall columns = good hours. The gray line shows the all-in price so
 you can see *why* an hour scores the way it does.
 
+More ready-made cards — including prices + rank, and an "overlapping
+bars" price breakdown — on [Dashboard charts](Dashboard-charts.md).
+
 ## Step 4 — Watch it for a day
 
 - At the top of each hour the score, rank and relative score change.

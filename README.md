@@ -141,8 +141,9 @@ automation:
           entity_id: switch.pv_inverter
 ```
 
-More examples and a ready-made ApexCharts card:
-[Example automations](wiki/Example-automations.md) and
+More examples, plus ready-made ApexCharts dashboard cards:
+[Example automations](wiki/Example-automations.md),
+[Dashboard charts](wiki/Dashboard-charts.md) and
 [Check that it works](wiki/Check-that-it-works.md).
 
 ## Good to know

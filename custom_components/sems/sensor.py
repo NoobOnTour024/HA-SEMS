@@ -95,6 +95,7 @@ class SemsScoreSensor(SemsSensorBase):
                 {
                     "start": entry["start"],
                     "price": round(entry["price"], 5),
+                    "effective_price": round(entry["effective_price"], 5),
                     "pv": round(entry["pv"], 1),
                     "score": round(entry["score"], 1),
                     "relative_score": round(entry["relative_score"], 1),

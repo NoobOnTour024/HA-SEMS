@@ -15,8 +15,9 @@ Attributes:
 
   ```yaml
   - start: "2026-07-06T13:00:00+02:00"
-    price: 0.07        # all-in price, €/kWh
-    pv: 4600           # forecast solar production, W
+    price: 0.07             # all-in price, €/kWh
+    effective_price: -0.03  # what a kWh really costs you, €/kWh
+    pv: 4600                # forecast solar production, W
     score: 98.9
     relative_score: 96.7
     rank: 24

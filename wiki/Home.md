@@ -29,6 +29,7 @@ you can build automations on.
 | [How the score works](How-the-score-works.md) | Understand the calculation in plain language. |
 | [Entities](Entities.md) | Know what every sensor means and which attributes exist. |
 | [Example automations](Example-automations.md) | Let SEMS actually control things. |
+| [Dashboard charts](Dashboard-charts.md) | Copy-paste ApexCharts cards for your dashboard. |
 | [Check that it works](Check-that-it-works.md) | Verify your setup with your own eyes. |
 | [FAQ](FAQ.md) | Quick answers to common questions. |
 
