@@ -56,11 +56,9 @@ actually pay per kWh, or the bare market price?*
 
 - **All-in** (default) — the sensor's price already includes energy tax and
   VAT. Most supplier integrations (EnergyZero, Zonneplan, Frank Energie)
-  work like this. SEMS uses the price unchanged, and you never see the tax
-  fields.
+  work like this. SEMS uses the price unchanged.
 - **Raw** — the sensor shows the bare market/spot price. The core Nord Pool
-  integration works like this. An extra screen asks for your taxes, and
-  SEMS adds them on top:
+  integration works like this. SEMS adds your taxes on top:
 
   ```
   all-in price = (raw price + supplier markup + energy tax) × (1 + VAT%)
@@ -120,10 +118,22 @@ shows exactly what data SEMS found and every intermediate number. Turn it
 off via Configure once you've verified your setup — see
 [Check that it works](Check-that-it-works.md).
 
-## Screen 3 — Taxes and markup (raw prices only)
+## Screen 3 — Taxes and markup
 
-This screen only appears when you chose **Raw** as the price type. Enter
-all amounts **as positive numbers**:
+This screen appears for **every** price type, because the values do two
+different jobs:
+
+- **Raw market prices**: SEMS *adds* them on top of the market price to
+  calculate what you actually pay per kWh.
+- **All-in prices**: SEMS uses them *in reverse* — it strips them off your
+  all-in price to estimate the bare market price hiding inside it. That
+  market price determines what **exporting** your solar power earns
+  (exported power never earns the taxes back), which sits at the heart of
+  the score.
+
+So even with an all-in contract it pays to fill these in accurately —
+grab your energy contract or last invoice. Enter all amounts **as positive
+numbers**:
 
 - **Supplier markup** — what your supplier charges per kWh on top of the
   market price (default €0.020/kWh excl. VAT).
@@ -131,15 +141,9 @@ all amounts **as positive numbers**:
   excl. VAT, the 2026 value).
 - **VAT** — default 21%.
 
-> ⚠️ **The defaults are Dutch 2026 values. Check them against your own
-> contract** — every supplier charges a different markup, and tax rates
-> change every year.
-
-Chose **All-in**? Then you never see these fields. SEMS still keeps the
-Dutch default values internally: it uses them in reverse to estimate the
-bare market price hiding inside your all-in price, which it needs to know
-what exporting earns. That estimate being slightly off shifts the export
-value by a cent or two at most — the effect on the scores is small.
+> ⚠️ **The defaults are Dutch 2026 values and work fine to start with —
+> but check them against your own contract.** Every supplier charges a
+> different markup, and tax rates change every year.
 
 ## The balance slider (not in the config — it's an entity!)
 

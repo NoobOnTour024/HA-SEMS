@@ -15,7 +15,7 @@
       },
       "settings": {
         "title": "Settings",
-        "description": "The defaults work out of the box — you can simply submit this screen. All settings can be changed later via Configure.",
+        "description": "The defaults work out of the box, but the closer these values match your energy contract, the more accurate the scores. Everything can be changed later via Configure.",
         "data": {
           "price_type": "What kind of price does the source entity provide?",
           "export_fee": "Export fee (feed-in costs)",
@@ -24,7 +24,7 @@
           "debug_mode": "Debug mode (extra diagnostics sensor)"
         },
         "data_description": {
-          "price_type": "All-in: the price already includes taxes and VAT — most supplier integrations (EnergyZero, Zonneplan, Frank Energie) work like this. Raw: the bare market price (core Nord Pool); the next screen will ask for your taxes.",
+          "price_type": "All-in: the price already includes taxes and VAT — most supplier integrations (EnergyZero, Zonneplan, Frank Energie) work like this. Raw: the bare market price (core Nord Pool). The next screen asks for your taxes in both cases.",
           "export_fee": "What your supplier charges per exported kWh ('terugleverkosten'). Enter as a positive number — SEMS subtracts it from the market price to calculate what exporting earns.",
           "pv_capacity": "Total rated power of your panels in Watts, e.g. 12 panels × 405 Wp = 4860. Used to estimate how much of your consumption your own solar power covers per hour. Real output rarely reaches this rated maximum and that is fine — it makes the estimate slightly conservative. 0 = automatic: assume the sunniest hour of the day covers your consumption.",
           "price_free_threshold": "Below this all-in price, power counts as free: the score goes above 100 and the free-power sensor turns on.",
@@ -33,7 +33,7 @@
       },
       "taxes": {
         "title": "Taxes and markup",
-        "description": "Your price source provides bare market prices, so SEMS adds these on top to get the price you actually pay. The defaults are Dutch 2026 values — verify them against your energy contract. Enter all amounts as positive numbers.",
+        "description": "These values matter for every price type. Raw market prices: SEMS adds them on top to calculate what you actually pay. All-in prices: SEMS uses them in reverse, to estimate the bare market price inside your price — that determines what exporting your solar power earns. Please fill them in as accurately as you can (check your energy contract); the defaults are Dutch 2026 values and work fine to start with. Enter all amounts as positive numbers.",
         "data": {
           "supplier_markup": "Supplier markup (excl. VAT)",
           "energy_tax": "Energy tax (excl. VAT)",
@@ -59,7 +59,7 @@
           "debug_mode": "Debug mode (extra diagnostics sensor)"
         },
         "data_description": {
-          "price_type": "All-in: the price already includes taxes and VAT — most supplier integrations (EnergyZero, Zonneplan, Frank Energie) work like this. Raw: the bare market price (core Nord Pool); the next screen will ask for your taxes.",
+          "price_type": "All-in: the price already includes taxes and VAT — most supplier integrations (EnergyZero, Zonneplan, Frank Energie) work like this. Raw: the bare market price (core Nord Pool). The next screen asks for your taxes in both cases.",
           "export_fee": "What your supplier charges per exported kWh ('terugleverkosten'). Enter as a positive number — SEMS subtracts it from the market price to calculate what exporting earns.",
           "pv_capacity": "Total rated power of your panels in Watts, e.g. 12 panels × 405 Wp = 4860. Used to estimate how much of your consumption your own solar power covers per hour. Real output rarely reaches this rated maximum and that is fine — it makes the estimate slightly conservative. 0 = automatic: assume the sunniest hour of the day covers your consumption.",
           "price_free_threshold": "Below this all-in price, power counts as free: the score goes above 100 and the free-power sensor turns on.",
@@ -68,7 +68,7 @@
       },
       "taxes": {
         "title": "Taxes and markup",
-        "description": "Your price source provides bare market prices, so SEMS adds these on top to get the price you actually pay. The defaults are Dutch 2026 values — verify them against your energy contract. Enter all amounts as positive numbers.",
+        "description": "These values matter for every price type. Raw market prices: SEMS adds them on top to calculate what you actually pay. All-in prices: SEMS uses them in reverse, to estimate the bare market price inside your price — that determines what exporting your solar power earns. Please fill them in as accurately as you can (check your energy contract); the defaults are Dutch 2026 values and work fine to start with. Enter all amounts as positive numbers.",
         "data": {
           "supplier_markup": "Supplier markup (excl. VAT)",
           "energy_tax": "Energy tax (excl. VAT)",

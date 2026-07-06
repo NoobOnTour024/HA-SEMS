@@ -10,8 +10,11 @@ Assistant:
 2. your **solar production forecast** (from Forecast.Solar, Solcast, ...).
 
 Out of those, SEMS calculates one simple number per hour: the **score**.
-High score = cheap and/or sunny = good moment to run big appliances. Low
-score = expensive and dark = better to wait.
+A high score means using power is cheap that hour — a low price, or your
+own panels covering it. A low score means using power is costly that hour.
+Usually that's an expensive dark hour, but it can also be a sunny one
+during an extreme price spike: exporting your solar power then earns more
+than using it yourself, so consuming is better postponed.
 
 SEMS is deliberately simple: no machine learning, no cloud, no external
 connections. It reads two sensors, does honest math, and gives you numbers
