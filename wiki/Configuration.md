@@ -47,7 +47,7 @@ The diagnostics sensor tells you which route was used (`pv_source`).
 No solar panels? Leave it empty. SEMS then treats all solar values as 0 and
 the score is driven by price alone.
 
-## Screen 2 — Prices and taxes
+## Screen 2 — Settings
 
 ### Price type
 
@@ -56,9 +56,11 @@ actually pay per kWh, or the bare market price?*
 
 - **All-in** (default) — the sensor's price already includes energy tax and
   VAT. Most supplier integrations (EnergyZero, Zonneplan, Frank Energie)
-  work like this. SEMS uses the price unchanged.
+  work like this. SEMS uses the price unchanged, and you never see the tax
+  fields.
 - **Raw** — the sensor shows the bare market/spot price. The core Nord Pool
-  integration works like this. SEMS adds your taxes on top:
+  integration works like this. An extra screen asks for your taxes, and
+  SEMS adds them on top:
 
   ```
   all-in price = (raw price + supplier markup + energy tax) × (1 + VAT%)
@@ -72,34 +74,31 @@ You can always verify the result: `sensor.sems_current_price` shows the
 all-in price SEMS calculated for this hour. It should match what your
 supplier's app says you pay right now.
 
-### Supplier markup, energy tax, VAT
-
-Only *added* to the price when price type is **Raw** — but they matter for
-everyone: SEMS also uses them in reverse to estimate the bare market price
-inside an all-in price, which it needs to know what **exporting** earns
-(exported power never earns the taxes back).
-
-> ⚠️ **The defaults are Dutch 2026 values**: supplier markup €0.020/kWh,
-> energy tax €0.0916/kWh (both excl. VAT), VAT 21%. **Check them against
-> your own contract** — every supplier charges a different markup, and tax
-> rates change every year.
-
 ### Export fee (feed-in costs)
 
 What your supplier charges per exported kWh ("terugleverkosten"), default
-€0.02/kWh. Exporting one kWh earns you:
-`bare market price − export fee`. This number is at the heart of the score —
-see [How the score works](How-the-score-works.md).
+€0.02/kWh. **Enter it as a positive number** — SEMS subtracts it for you.
+Exporting one kWh earns you: `bare market price − export fee`. This number
+is at the heart of the score — see
+[How the score works](How-the-score-works.md).
 
 ### Solar installation size (0 = automatic)
 
-The total peak power of your solar panels in Watts — e.g. **5000** for a
-5 kWp system (usually on your installer's invoice, or count:
-number of panels × Wp per panel).
+The total rated power of your solar panels in Watts — count:
+number of panels × Wp per panel, e.g. 12 × 405 Wp = **4860** (also on your
+installer's invoice).
 
 SEMS uses it to estimate how much of your consumption your own solar power
-covers each hour: a forecast of 600 W on a 5000 Wp system clearly covers
+covers each hour: a forecast of 600 W on a 4860 Wp system clearly covers
 very little, so that hour is priced close to the normal grid price.
+
+**About efficiency:** real installations rarely reach their rated maximum
+(panel temperature, orientation, inverter limits). You do *not* need to
+correct for that — just enter the rated total. The forecast itself already
+predicts realistic output, so the estimate errs slightly on the careful
+side. Only if your system structurally peaks far below its rating (e.g. an
+east-west roof, heavy shading) can you enter a lower value — roughly your
+real summer peak — to give sunny hours a bit more weight.
 
 Left at **0** (the default), SEMS assumes the sunniest forecast hour of the
 day covers your consumption. That works fine on sunny days but is too
@@ -120,6 +119,27 @@ ON by default after installation. Adds `sensor.sems_diagnostics`, which
 shows exactly what data SEMS found and every intermediate number. Turn it
 off via Configure once you've verified your setup — see
 [Check that it works](Check-that-it-works.md).
+
+## Screen 3 — Taxes and markup (raw prices only)
+
+This screen only appears when you chose **Raw** as the price type. Enter
+all amounts **as positive numbers**:
+
+- **Supplier markup** — what your supplier charges per kWh on top of the
+  market price (default €0.020/kWh excl. VAT).
+- **Energy tax** — the Dutch "energiebelasting" (default €0.0916/kWh
+  excl. VAT, the 2026 value).
+- **VAT** — default 21%.
+
+> ⚠️ **The defaults are Dutch 2026 values. Check them against your own
+> contract** — every supplier charges a different markup, and tax rates
+> change every year.
+
+Chose **All-in**? Then you never see these fields. SEMS still keeps the
+Dutch default values internally: it uses them in reverse to estimate the
+bare market price hiding inside your all-in price, which it needs to know
+what exporting earns. That estimate being slightly off shifts the export
+value by a cent or two at most — the effect on the scores is small.
 
 ## The balance slider (not in the config — it's an entity!)
 

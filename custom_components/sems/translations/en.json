@@ -9,32 +9,40 @@
           "pv_forecast_entity": "PV forecast entity (optional)"
         },
         "data_description": {
-          "price_entity": "Using the core Nord Pool integration? Pick any of its sensors — which one doesn't matter, SEMS fetches the hourly prices itself. Using HACS Nord Pool, EnergyZero or similar? Pick the specific sensor that has the raw_today/raw_tomorrow attributes (check in Developer tools → States).",
+          "price_entity": "Using the core Nord Pool integration? Pick any of its sensors — which one doesn't matter, SEMS fetches the hourly prices itself. Using HACS Nord Pool, EnergyZero, Frank Energie or similar? Pick the specific sensor that has the hourly prices in its attributes (raw_today or prices — check in Developer tools → States).",
           "pv_forecast_entity": "Pick any sensor of your solar forecast integration (Forecast.Solar, Solcast, ...) — which one doesn't matter, SEMS asks the integration for its hourly forecast the same way the Energy dashboard does. Leave empty if you have no solar panels."
         }
       },
       "settings": {
-        "title": "Prices and taxes",
-        "description": "The defaults work out of the box (Dutch 2026 tax values). Only change them if your contract differs. All settings can be changed later via Configure.",
+        "title": "Settings",
+        "description": "The defaults work out of the box — you can simply submit this screen. All settings can be changed later via Configure.",
         "data": {
           "price_type": "What kind of price does the source entity provide?",
-          "supplier_markup": "Supplier markup (excl. VAT)",
-          "energy_tax": "Energy tax (excl. VAT)",
-          "vat_percent": "VAT",
           "export_fee": "Export fee (feed-in costs)",
           "pv_capacity": "Solar installation size (0 = automatic)",
           "price_free_threshold": "Free power threshold (all-in price)",
           "debug_mode": "Debug mode (extra diagnostics sensor)"
         },
         "data_description": {
-          "price_type": "All-in: the price already includes taxes and VAT (most common). Raw: the bare market price, SEMS adds the taxes below.",
-          "supplier_markup": "What your supplier charges per kWh on top of the market price.",
-          "energy_tax": "The energy tax per kWh (Dutch 'energiebelasting'). Default is the Dutch 2026 value.",
-          "vat_percent": "The VAT percentage applied to price, markup and tax.",
-          "export_fee": "What exporting a kWh costs you ('terugleverkosten'). Exporting earns the bare market price minus this fee.",
-          "pv_capacity": "Total peak power of your solar panels in Watts, e.g. 5000 for a 5 kWp system. Used to estimate how much of your consumption your own solar power covers per hour. 0 = automatic: assume the sunniest hour of the day covers it.",
+          "price_type": "All-in: the price already includes taxes and VAT — most supplier integrations (EnergyZero, Zonneplan, Frank Energie) work like this. Raw: the bare market price (core Nord Pool); the next screen will ask for your taxes.",
+          "export_fee": "What your supplier charges per exported kWh ('terugleverkosten'). Enter as a positive number — SEMS subtracts it from the market price to calculate what exporting earns.",
+          "pv_capacity": "Total rated power of your panels in Watts, e.g. 12 panels × 405 Wp = 4860. Used to estimate how much of your consumption your own solar power covers per hour. Real output rarely reaches this rated maximum and that is fine — it makes the estimate slightly conservative. 0 = automatic: assume the sunniest hour of the day covers your consumption.",
           "price_free_threshold": "Below this all-in price, power counts as free: the score goes above 100 and the free-power sensor turns on.",
           "debug_mode": "Adds sensor.sems_diagnostics showing exactly what data SEMS found, so you can verify everything works. Turn off once you trust the numbers."
+        }
+      },
+      "taxes": {
+        "title": "Taxes and markup",
+        "description": "Your price source provides bare market prices, so SEMS adds these on top to get the price you actually pay. The defaults are Dutch 2026 values — verify them against your energy contract. Enter all amounts as positive numbers.",
+        "data": {
+          "supplier_markup": "Supplier markup (excl. VAT)",
+          "energy_tax": "Energy tax (excl. VAT)",
+          "vat_percent": "VAT"
+        },
+        "data_description": {
+          "supplier_markup": "What your supplier charges per kWh on top of the market price. Enter as a positive number.",
+          "energy_tax": "The energy tax per kWh (Dutch 'energiebelasting'). Default is the Dutch 2026 value.",
+          "vat_percent": "The VAT percentage applied to price, markup and tax."
         }
       }
     }
@@ -45,23 +53,31 @@
         "title": "SEMS settings",
         "data": {
           "price_type": "What kind of price does the source entity provide?",
-          "supplier_markup": "Supplier markup (excl. VAT)",
-          "energy_tax": "Energy tax (excl. VAT)",
-          "vat_percent": "VAT",
           "export_fee": "Export fee (feed-in costs)",
           "pv_capacity": "Solar installation size (0 = automatic)",
           "price_free_threshold": "Free power threshold (all-in price)",
           "debug_mode": "Debug mode (extra diagnostics sensor)"
         },
         "data_description": {
-          "price_type": "All-in: the price already includes taxes and VAT (most common). Raw: the bare market price, SEMS adds the taxes below.",
-          "supplier_markup": "What your supplier charges per kWh on top of the market price.",
-          "energy_tax": "The energy tax per kWh (Dutch 'energiebelasting'). Default is the Dutch 2026 value.",
-          "vat_percent": "The VAT percentage applied to price, markup and tax.",
-          "export_fee": "What exporting a kWh costs you ('terugleverkosten'). Exporting earns the bare market price minus this fee.",
-          "pv_capacity": "Total peak power of your solar panels in Watts, e.g. 5000 for a 5 kWp system. Used to estimate how much of your consumption your own solar power covers per hour. 0 = automatic: assume the sunniest hour of the day covers it.",
+          "price_type": "All-in: the price already includes taxes and VAT — most supplier integrations (EnergyZero, Zonneplan, Frank Energie) work like this. Raw: the bare market price (core Nord Pool); the next screen will ask for your taxes.",
+          "export_fee": "What your supplier charges per exported kWh ('terugleverkosten'). Enter as a positive number — SEMS subtracts it from the market price to calculate what exporting earns.",
+          "pv_capacity": "Total rated power of your panels in Watts, e.g. 12 panels × 405 Wp = 4860. Used to estimate how much of your consumption your own solar power covers per hour. Real output rarely reaches this rated maximum and that is fine — it makes the estimate slightly conservative. 0 = automatic: assume the sunniest hour of the day covers your consumption.",
           "price_free_threshold": "Below this all-in price, power counts as free: the score goes above 100 and the free-power sensor turns on.",
           "debug_mode": "Adds sensor.sems_diagnostics showing exactly what data SEMS found, so you can verify everything works. Turn off once you trust the numbers."
+        }
+      },
+      "taxes": {
+        "title": "Taxes and markup",
+        "description": "Your price source provides bare market prices, so SEMS adds these on top to get the price you actually pay. The defaults are Dutch 2026 values — verify them against your energy contract. Enter all amounts as positive numbers.",
+        "data": {
+          "supplier_markup": "Supplier markup (excl. VAT)",
+          "energy_tax": "Energy tax (excl. VAT)",
+          "vat_percent": "VAT"
+        },
+        "data_description": {
+          "supplier_markup": "What your supplier charges per kWh on top of the market price. Enter as a positive number.",
+          "energy_tax": "The energy tax per kWh (Dutch 'energiebelasting'). Default is the Dutch 2026 value.",
+          "vat_percent": "The VAT percentage applied to price, markup and tax."
         }
       }
     }

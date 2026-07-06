@@ -104,23 +104,29 @@ def _parse_datetime(value: Any) -> datetime | None:
 
 
 def _parse_price_attributes(state: State) -> list[tuple[datetime, float]]:
-    """Parse Nordpool-style ``raw_today`` / ``raw_tomorrow`` attributes.
+    """Parse hourly prices from the entity's attributes.
 
-    Each attribute is a list of dicts like
-    ``{"start": <datetime>, "end": <datetime>, "value": <€/kWh>}``.
-    Some integrations name the price key ``price`` instead of ``value``;
-    both are accepted. Returns an empty list when the attributes are absent
-    (meaning: this is not an attribute-format entity).
+    Two attribute shapes are supported:
+
+    * Nordpool-style ``raw_today`` / ``raw_tomorrow``: lists of dicts like
+      ``{"start": <datetime>, "end": <datetime>, "value": <€/kWh>}``.
+    * Frank Energie-style ``prices``: one list of dicts like
+      ``{"from": <datetime>, "till": <datetime>, "price": <€/kWh>}``.
+
+    The start key may be ``start`` or ``from`` and the price key may be
+    ``value`` or ``price`` — all combinations are accepted. Returns an
+    empty list when no such attributes exist (meaning: this is not an
+    attribute-format entity).
     """
     pairs: list[tuple[datetime, float]] = []
-    for attr in ("raw_today", "raw_tomorrow"):
+    for attr in ("raw_today", "raw_tomorrow", "prices"):
         items = state.attributes.get(attr)
         if not isinstance(items, list):
             continue
         for item in items:
             if not isinstance(item, dict):
                 continue
-            start = _parse_datetime(item.get("start"))
+            start = _parse_datetime(item.get("start", item.get("from")))
             value = item.get("value", item.get("price"))
             if start is None or not isinstance(value, (int, float)):
                 continue

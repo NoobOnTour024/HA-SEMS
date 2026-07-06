@@ -1,14 +1,20 @@
 """Config flow for SEMS: the setup wizard shown in the Home Assistant UI.
 
-The flow has two steps:
+The flow has two or three steps:
 
 1. ``user``     — pick the two source entities. The price entity is
                   required; the PV forecast entity is optional.
-2. ``settings`` — everything else, all pre-filled with sensible defaults,
-                  so simply clicking "Submit" gives a working setup.
+2. ``settings`` — the general settings, all pre-filled with sensible
+                  defaults, so simply clicking "Submit" gives a working
+                  setup.
+3. ``taxes``    — supplier markup, energy tax and VAT. Only shown when the
+                  price type is "raw" (bare market prices): all-in users
+                  never see these fields. When hidden, the Dutch default
+                  values are stored so the export-price estimate still has
+                  numbers to work with.
 
-The same settings can be changed later via the integration's
-"Configure" button (the options flow at the bottom of this file).
+The same steps are used by the options flow (the integration's
+"Configure" button) at the bottom of this file.
 """
 
 from __future__ import annotations
@@ -55,11 +61,20 @@ from .const import (
     PRICE_TYPE_RAW,
 )
 
+# The three fields of the "taxes" step, with their defaults. Used to store
+# defaults when the step is skipped (all-in prices) and to preserve
+# previously saved values when the options flow skips the step.
+TAX_DEFAULTS: dict[str, Any] = {
+    CONF_SUPPLIER_MARKUP: DEFAULT_SUPPLIER_MARKUP,
+    CONF_ENERGY_TAX: DEFAULT_ENERGY_TAX,
+    CONF_VAT_PERCENT: DEFAULT_VAT_PERCENT,
+}
+
 
 def _settings_schema(current: dict[str, Any]) -> vol.Schema:
-    """Build the settings form, pre-filled with ``current`` values.
+    """Build the general settings form, pre-filled with ``current`` values.
 
-    Used by both the second setup step (pre-filled with defaults) and the
+    Used by both the setup wizard (pre-filled with defaults) and the
     options flow (pre-filled with the user's saved settings).
     """
     return vol.Schema(
@@ -72,33 +87,6 @@ def _settings_schema(current: dict[str, Any]) -> vol.Schema:
                     options=[PRICE_TYPE_ALL_IN, PRICE_TYPE_RAW],
                     mode=SelectSelectorMode.LIST,
                     translation_key="price_type",
-                )
-            ),
-            vol.Required(
-                CONF_SUPPLIER_MARKUP,
-                default=current.get(CONF_SUPPLIER_MARKUP, DEFAULT_SUPPLIER_MARKUP),
-            ): NumberSelector(
-                NumberSelectorConfig(
-                    min=0, max=1, step="any", mode=NumberSelectorMode.BOX,
-                    unit_of_measurement="€/kWh",
-                )
-            ),
-            vol.Required(
-                CONF_ENERGY_TAX,
-                default=current.get(CONF_ENERGY_TAX, DEFAULT_ENERGY_TAX),
-            ): NumberSelector(
-                NumberSelectorConfig(
-                    min=0, max=1, step="any", mode=NumberSelectorMode.BOX,
-                    unit_of_measurement="€/kWh",
-                )
-            ),
-            vol.Required(
-                CONF_VAT_PERCENT,
-                default=current.get(CONF_VAT_PERCENT, DEFAULT_VAT_PERCENT),
-            ): NumberSelector(
-                NumberSelectorConfig(
-                    min=0, max=100, step=0.1, mode=NumberSelectorMode.BOX,
-                    unit_of_measurement="%",
                 )
             ),
             vol.Required(
@@ -136,20 +124,56 @@ def _settings_schema(current: dict[str, Any]) -> vol.Schema:
     )
 
 
+def _taxes_schema(current: dict[str, Any]) -> vol.Schema:
+    """Build the taxes form (only shown for raw market prices)."""
+    return vol.Schema(
+        {
+            vol.Required(
+                CONF_SUPPLIER_MARKUP,
+                default=current.get(CONF_SUPPLIER_MARKUP, DEFAULT_SUPPLIER_MARKUP),
+            ): NumberSelector(
+                NumberSelectorConfig(
+                    min=0, max=1, step="any", mode=NumberSelectorMode.BOX,
+                    unit_of_measurement="€/kWh",
+                )
+            ),
+            vol.Required(
+                CONF_ENERGY_TAX,
+                default=current.get(CONF_ENERGY_TAX, DEFAULT_ENERGY_TAX),
+            ): NumberSelector(
+                NumberSelectorConfig(
+                    min=0, max=1, step="any", mode=NumberSelectorMode.BOX,
+                    unit_of_measurement="€/kWh",
+                )
+            ),
+            vol.Required(
+                CONF_VAT_PERCENT,
+                default=current.get(CONF_VAT_PERCENT, DEFAULT_VAT_PERCENT),
+            ): NumberSelector(
+                NumberSelectorConfig(
+                    min=0, max=100, step=0.1, mode=NumberSelectorMode.BOX,
+                    unit_of_measurement="%",
+                )
+            ),
+        }
+    )
+
+
 class SemsConfigFlow(ConfigFlow, domain=DOMAIN):
-    """The two-step setup wizard."""
+    """The setup wizard."""
 
     VERSION = 1
 
     def __init__(self) -> None:
-        self._entities: dict[str, Any] = {}
+        # Collects the answers from all steps until the entry is created.
+        self._data: dict[str, Any] = {}
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> Any:
         """Step 1: pick the source entities."""
         if user_input is not None:
-            self._entities = user_input
+            self._data.update(user_input)
             return await self.async_step_settings()
 
         return self.async_show_form(
@@ -169,15 +193,32 @@ class SemsConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_settings(
         self, user_input: dict[str, Any] | None = None
     ) -> Any:
-        """Step 2: prices, taxes and thresholds — all with working defaults."""
+        """Step 2: general settings — all with working defaults."""
         if user_input is not None:
+            self._data.update(user_input)
+            if user_input[CONF_PRICE_TYPE] == PRICE_TYPE_RAW:
+                # Raw market prices: ask for the taxes to add on top.
+                return await self.async_step_taxes()
+            # All-in prices: the tax fields stay hidden; store the defaults
+            # (they are still used internally to estimate the market price
+            # inside the all-in price, for the export calculation).
             return self.async_create_entry(
-                title="SEMS", data={**self._entities, **user_input}
+                title="SEMS", data={**TAX_DEFAULTS, **self._data}
             )
 
         return self.async_show_form(
             step_id="settings", data_schema=_settings_schema({})
         )
+
+    async def async_step_taxes(
+        self, user_input: dict[str, Any] | None = None
+    ) -> Any:
+        """Step 3 (raw prices only): supplier markup, energy tax and VAT."""
+        if user_input is not None:
+            self._data.update(user_input)
+            return self.async_create_entry(title="SEMS", data=self._data)
+
+        return self.async_show_form(step_id="taxes", data_schema=_taxes_schema({}))
 
     @staticmethod
     @callback
@@ -189,18 +230,43 @@ class SemsConfigFlow(ConfigFlow, domain=DOMAIN):
 class SemsOptionsFlow(OptionsFlow):
     """Change the settings later via the integration's Configure button.
 
-    (To change the source entities themselves, remove and re-add the
-    integration — that keeps this flow simple.)
+    Mirrors the setup wizard: the taxes step only appears when the price
+    type is "raw". (To change the source entities themselves, remove and
+    re-add the integration — that keeps this flow simple.)
     """
+
+    def __init__(self) -> None:
+        self._options: dict[str, Any] = {}
+
+    def _current(self) -> dict[str, Any]:
+        """The currently effective settings: saved options over setup data."""
+        return {**self.config_entry.data, **self.config_entry.options}
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> Any:
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+            self._options = user_input
+            if user_input[CONF_PRICE_TYPE] == PRICE_TYPE_RAW:
+                return await self.async_step_taxes()
+            # All-in prices: keep the previously saved tax values (or the
+            # defaults) so nothing is lost by not showing the step.
+            current = self._current()
+            taxes = {key: current.get(key, default) for key, default in TAX_DEFAULTS.items()}
+            return self.async_create_entry(title="", data={**taxes, **self._options})
 
-        # Pre-fill with saved options, falling back to the initial setup data.
-        current = {**self.config_entry.data, **self.config_entry.options}
         return self.async_show_form(
-            step_id="init", data_schema=_settings_schema(current)
+            step_id="init", data_schema=_settings_schema(self._current())
+        )
+
+    async def async_step_taxes(
+        self, user_input: dict[str, Any] | None = None
+    ) -> Any:
+        if user_input is not None:
+            return self.async_create_entry(
+                title="", data={**self._options, **user_input}
+            )
+
+        return self.async_show_form(
+            step_id="taxes", data_schema=_taxes_schema(self._current())
         )

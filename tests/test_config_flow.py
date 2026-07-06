@@ -1,9 +1,9 @@
 """Tests for the SEMS config flow, run against a real Home Assistant core.
 
 These tests drive the setup wizard exactly like the frontend does:
-initialize the flow, submit the entity screen, submit the settings screen,
-and check that a config entry is created. This is what catches "unknown
-error" problems that plain unit tests cannot see.
+initialize the flow, submit each screen, and check that a config entry is
+created. This is what catches "unknown error" problems that plain unit
+tests cannot see.
 """
 
 from unittest.mock import patch
@@ -20,15 +20,23 @@ from custom_components.sems.const import (
     CONF_PRICE_ENTITY,
     CONF_PRICE_TYPE,
     CONF_PV_FORECAST_ENTITY,
+    CONF_SUPPLIER_MARKUP,
     CONF_VAT_PERCENT,
     DEFAULT_ENERGY_TAX,
     DEFAULT_PRICE_TYPE,
+    DEFAULT_SUPPLIER_MARKUP,
     DOMAIN,
+    PRICE_TYPE_RAW,
 )
 
 
 async def test_full_flow_with_defaults(hass: HomeAssistant) -> None:
-    """The happy path: pick two entities, accept all defaults."""
+    """The happy path: pick two entities, accept all defaults (all-in).
+
+    With all-in prices the taxes screen must NOT appear, but the Dutch
+    default tax values must still be stored (they are used internally for
+    the export-price estimate).
+    """
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": config_entries.SOURCE_USER}
     )
@@ -57,7 +65,36 @@ async def test_full_flow_with_defaults(hass: HomeAssistant) -> None:
     assert data[CONF_PRICE_ENTITY] == "sensor.nordpool_prices"
     assert data[CONF_PV_FORECAST_ENTITY] == "sensor.solar_forecast"
     assert data[CONF_PRICE_TYPE] == DEFAULT_PRICE_TYPE
+    # Tax defaults stored even though the taxes screen was skipped.
     assert data[CONF_ENERGY_TAX] == DEFAULT_ENERGY_TAX
+    assert data[CONF_SUPPLIER_MARKUP] == DEFAULT_SUPPLIER_MARKUP
+
+
+async def test_raw_price_flow_shows_taxes_step(hass: HomeAssistant) -> None:
+    """Choosing raw market prices adds the taxes screen to the wizard."""
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_USER}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_PRICE_ENTITY: "sensor.nordpool_prices"}
+    )
+    assert result["step_id"] == "settings"
+
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_PRICE_TYPE: PRICE_TYPE_RAW}
+    )
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "taxes"
+
+    with patch("custom_components.sems.async_setup_entry", return_value=True):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], {CONF_VAT_PERCENT: 9}
+        )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["data"][CONF_PRICE_TYPE] == PRICE_TYPE_RAW
+    assert result["data"][CONF_VAT_PERCENT] == 9
+    assert result["data"][CONF_ENERGY_TAX] == DEFAULT_ENERGY_TAX
 
 
 async def test_flow_without_pv_entity(hass: HomeAssistant) -> None:
@@ -78,8 +115,37 @@ async def test_flow_without_pv_entity(hass: HomeAssistant) -> None:
     assert CONF_PV_FORECAST_ENTITY not in result["data"]
 
 
-async def test_options_flow(hass: HomeAssistant) -> None:
-    """Settings can be changed later via the Configure button."""
+async def test_options_flow_all_in_keeps_taxes(hass: HomeAssistant) -> None:
+    """Options flow: with all-in prices the taxes screen is skipped, and
+    previously saved tax values are preserved."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="SEMS",
+        data={
+            CONF_PRICE_ENTITY: "sensor.nordpool_prices",
+            CONF_PRICE_TYPE: DEFAULT_PRICE_TYPE,
+            CONF_ENERGY_TAX: 0.05,  # a custom, non-default value
+        },
+    )
+    entry.add_to_hass(hass)
+
+    with patch("custom_components.sems.async_setup_entry", return_value=True):
+        result = await hass.config_entries.options.async_init(entry.entry_id)
+        assert result["type"] is FlowResultType.FORM
+        assert result["step_id"] == "init"
+
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"], {CONF_DEBUG_MODE: False}
+        )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["data"][CONF_DEBUG_MODE] is False
+    # The custom tax value survived even though the taxes screen was skipped.
+    assert result["data"][CONF_ENERGY_TAX] == 0.05
+
+
+async def test_options_flow_raw_shows_taxes(hass: HomeAssistant) -> None:
+    """Options flow: switching to raw prices asks for the taxes."""
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="SEMS",
@@ -92,13 +158,16 @@ async def test_options_flow(hass: HomeAssistant) -> None:
 
     with patch("custom_components.sems.async_setup_entry", return_value=True):
         result = await hass.config_entries.options.async_init(entry.entry_id)
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"], {CONF_PRICE_TYPE: PRICE_TYPE_RAW}
+        )
         assert result["type"] is FlowResultType.FORM
-        assert result["step_id"] == "init"
+        assert result["step_id"] == "taxes"
 
         result = await hass.config_entries.options.async_configure(
-            result["flow_id"], {CONF_VAT_PERCENT: 9, CONF_DEBUG_MODE: False}
+            result["flow_id"], {CONF_SUPPLIER_MARKUP: 0.03}
         )
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert result["data"][CONF_VAT_PERCENT] == 9
-    assert result["data"][CONF_DEBUG_MODE] is False
+    assert result["data"][CONF_PRICE_TYPE] == PRICE_TYPE_RAW
+    assert result["data"][CONF_SUPPLIER_MARKUP] == 0.03

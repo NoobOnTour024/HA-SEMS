@@ -87,7 +87,10 @@ entity (`watts` dict or a Solcast-style `forecast` list) work too.
 
 1. Any sensor with Nordpool-style `raw_today`/`raw_tomorrow` attributes
    (HACS Nord Pool, EnergyZero, and others).
-2. The core **Nord Pool** integration (SEMS uses its
+2. Any sensor with a Frank Energie-style `prices` attribute (a list of
+   `from`/`till`/`price` entries) — e.g. **Frank Energie**'s
+   "Current electricity price (All-in)" sensor.
+3. The core **Nord Pool** integration (SEMS uses its
    `get_prices_for_date` action behind the scenes).
 
 Something else? Open an issue on GitHub — the parser was built to be easy
