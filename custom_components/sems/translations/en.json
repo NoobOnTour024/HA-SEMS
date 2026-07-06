@@ -9,8 +9,8 @@
           "pv_forecast_entity": "PV forecast entity (optional)"
         },
         "data_description": {
-          "price_entity": "A sensor with hourly electricity prices, e.g. from Nord Pool, EnergyZero or Zonneplan.",
-          "pv_forecast_entity": "A sensor with an hourly solar production forecast, e.g. from Forecast.Solar or Solcast. Leave empty if you have no solar panels."
+          "price_entity": "Using the core Nord Pool integration? Pick any of its sensors — which one doesn't matter, SEMS fetches the hourly prices itself. Using HACS Nord Pool, EnergyZero or similar? Pick the specific sensor that has the raw_today/raw_tomorrow attributes (check in Developer tools → States).",
+          "pv_forecast_entity": "Pick any sensor of your solar forecast integration (Forecast.Solar, Solcast, ...) — which one doesn't matter, SEMS asks the integration for its hourly forecast the same way the Energy dashboard does. Leave empty if you have no solar panels."
         }
       },
       "settings": {

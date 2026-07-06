@@ -79,7 +79,7 @@ def _settings_schema(current: dict[str, Any]) -> vol.Schema:
                 default=current.get(CONF_SUPPLIER_MARKUP, DEFAULT_SUPPLIER_MARKUP),
             ): NumberSelector(
                 NumberSelectorConfig(
-                    min=0, max=1, step=0.0001, mode=NumberSelectorMode.BOX,
+                    min=0, max=1, step="any", mode=NumberSelectorMode.BOX,
                     unit_of_measurement="€/kWh",
                 )
             ),
@@ -88,7 +88,7 @@ def _settings_schema(current: dict[str, Any]) -> vol.Schema:
                 default=current.get(CONF_ENERGY_TAX, DEFAULT_ENERGY_TAX),
             ): NumberSelector(
                 NumberSelectorConfig(
-                    min=0, max=1, step=0.0001, mode=NumberSelectorMode.BOX,
+                    min=0, max=1, step="any", mode=NumberSelectorMode.BOX,
                     unit_of_measurement="€/kWh",
                 )
             ),
@@ -106,7 +106,7 @@ def _settings_schema(current: dict[str, Any]) -> vol.Schema:
                 default=current.get(CONF_EXPORT_FEE, DEFAULT_EXPORT_FEE),
             ): NumberSelector(
                 NumberSelectorConfig(
-                    min=0, max=1, step=0.0001, mode=NumberSelectorMode.BOX,
+                    min=0, max=1, step="any", mode=NumberSelectorMode.BOX,
                     unit_of_measurement="€/kWh",
                 )
             ),
@@ -124,7 +124,7 @@ def _settings_schema(current: dict[str, Any]) -> vol.Schema:
                 default=current.get(CONF_PRICE_FREE_THRESHOLD, DEFAULT_PRICE_FREE_THRESHOLD),
             ): NumberSelector(
                 NumberSelectorConfig(
-                    min=-1, max=1, step=0.0001, mode=NumberSelectorMode.BOX,
+                    min=-1, max=1, step="any", mode=NumberSelectorMode.BOX,
                     unit_of_measurement="€/kWh",
                 )
             ),
