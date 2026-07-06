@@ -37,12 +37,14 @@ you can build automations on.
 
 - **You pick two sensors during setup. Everything else has working
   defaults.** SEMS works immediately.
-- Every hour gets a **score from 0 to 100**. Above 100 means the power is
-  effectively free (negative prices).
-- The **balance slider** decides what "good" means: 100 = cheapest hours
-  win, 0 = sunniest hours win, 50 = a fair mix (default).
 - `sensor.sems_rank` tells you where the current hour ranks in the coming
   24 (1 = worst, 24 = best). "Rank 20 or higher" simply means "one of the 5
   best hours of the day" — perfect for automations.
-- `binary_sensor.sems_free_power` switches ON when power is free — useful
-  to stop exporting solar power when exporting costs you money.
+- `sensor.sems_relative_score` says the same as a percentage: 0% = the
+  worst hour of the coming day, 100% = the best. **Note: 100% means "best
+  of the day", not "free".**
+- The **balance slider** decides what "good" means: 100 = cheapest hours
+  win, 0 = sunniest hours win, 50 = a fair mix (default).
+- `binary_sensor.sems_free_power` switches ON when power is actually free
+  (the all-in price is below zero) — useful to stop exporting solar power
+  when exporting costs you money.

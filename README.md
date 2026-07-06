@@ -84,12 +84,12 @@ SEMS → Configure**. Details: [Configuration](wiki/Configuration.md).
 
 | Entity | What it tells you |
 |---|---|
-| `sensor.sems_score` | Score of the current hour (0–100, above 100 = free power). Attribute `scores_24h` holds the full 24h breakdown for graphs and automations. |
-| `sensor.sems_relative_score` | Current hour compared to the coming 24h: 0% = worst hour, 100% = best hour. |
+| `sensor.sems_relative_score` | Current hour compared to the coming 24h: 0% = worst hour, 100% = best hour (best of the day — not "free"!). Attribute `scores_24h` holds the full 24h breakdown for graphs and automations. |
 | `sensor.sems_rank` | Rank of the current hour: 1 = worst of the 24h window, 24 = best. |
 | `sensor.sems_current_price` | The all-in price of the current hour (to verify the tax conversion). |
 | `binary_sensor.sems_free_power` | ON when the current all-in price is below the free-power threshold. |
 | `number.sems_balance` | The 0–100 slider: 100 = only price matters, 0 = only solar self-consumption matters. |
+| `sensor.sems_score` | Advanced, disabled by default: the raw internal score (0–100, above 100 = free power). |
 | `sensor.sems_diagnostics` | Temporary verification sensor (debug mode): shows exactly what data SEMS found. |
 
 More detail: [Entities](wiki/Entities.md).

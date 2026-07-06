@@ -48,8 +48,8 @@ that's the #1 setup mistake, and exactly what this sensor exists for.
 
 ## Step 3 — Sanity-check the scores
 
-Look at `sensor.sems_score` → attribute `scores_24h`, or put the chart
-below on a dashboard. Ask yourself:
+Look at `sensor.sems_relative_score` → attribute `scores_24h`, or put the
+chart below on a dashboard. Ask yourself:
 
 - On a day with cheap sunny afternoon hours: are those hours scoring
   highest? They should.
@@ -72,14 +72,14 @@ graph_span: 24h
 span:
   start: hour
 series:
-  - entity: sensor.sems_score
+  - entity: sensor.sems_relative_score
     name: Score
     type: column
     data_generator: |
       return entity.attributes.scores_24h.map((row) => {
         return [new Date(row.start).getTime(), row.score];
       });
-  - entity: sensor.sems_score
+  - entity: sensor.sems_relative_score
     name: Price (ct/kWh)
     type: line
     color: gray

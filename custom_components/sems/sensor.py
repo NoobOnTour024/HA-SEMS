@@ -2,14 +2,18 @@
 
 Five sensors are created (the last one only when debug mode is on):
 
-* ``sensor.sems_score``          — absolute score of the current hour, with
-                                   the full 24h breakdown in the
-                                   ``scores_24h`` attribute.
 * ``sensor.sems_relative_score`` — 0–100%, current hour vs the 24h window.
+                                   Carries the full 24h breakdown in the
+                                   ``scores_24h`` attribute — this is the
+                                   main sensor for automations and charts.
 * ``sensor.sems_rank``           — 1..24, rank of the current hour
                                    (1 = worst, 24 = best).
 * ``sensor.sems_current_price``  — the converted all-in price of the current
                                    hour, so users can verify the tax math.
+* ``sensor.sems_score``          — the raw internal score of the current
+                                   hour. Advanced: disabled by default,
+                                   because it is easily confused with the
+                                   relative score (see the class docstring).
 * ``sensor.sems_diagnostics``    — TEMPORARY verification aid (debug mode):
                                    a plain-language health message with all
                                    intermediate numbers as attributes.
@@ -72,11 +76,20 @@ class SemsSensorBase(CoordinatorEntity[SemsCoordinator], SensorEntity):
 
 
 class SemsScoreSensor(SemsSensorBase):
-    """The absolute score of the current hour (0–100, >100 = free power)."""
+    """The raw internal score of the current hour (0–100, >100 = free power).
+
+    Advanced sensor, DISABLED by default: the raw score is easily confused
+    with the relative score (both are relative to the 24h window; the
+    relative score is simply the raw score stretched to exactly 0–100).
+    Enable it via the entity settings if you want to automate on it. The
+    per-hour raw scores stay available to everyone in the ``scores_24h``
+    attribute of the relative score sensor.
+    """
 
     _attr_name = "Score"
     _attr_icon = "mdi:speedometer"
     _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator: SemsCoordinator, entry: ConfigEntry) -> None:
         super().__init__(coordinator, entry, "score")
@@ -84,6 +97,29 @@ class SemsScoreSensor(SemsSensorBase):
     @property
     def native_value(self) -> float | None:
         return round(self.coordinator.data["current"]["score"], 1)
+
+
+class SemsRelativeScoreSensor(SemsSensorBase):
+    """Current hour relative to the 24h window: 0 = worst, 100 = best.
+
+    This is the main SEMS sensor: its ``scores_24h`` attribute carries the
+    full window (one entry per hour) for automations and dashboard charts.
+    Note that 100 means "the best hour of the coming day", NOT "free power"
+    — free power is signalled by ``binary_sensor.sems_free_power`` and by
+    raw scores above 100 inside ``scores_24h``.
+    """
+
+    _attr_name = "Relative score"
+    _attr_icon = "mdi:percent"
+    _attr_native_unit_of_measurement = "%"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(self, coordinator: SemsCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator, entry, "relative_score")
+
+    @property
+    def native_value(self) -> float | None:
+        return round(self.coordinator.data["current"]["relative_score"], 1)
 
     @property
     def extra_state_attributes(self) -> dict:
@@ -105,22 +141,6 @@ class SemsScoreSensor(SemsSensorBase):
             ],
             "hours_available": data["hours_available"],
         }
-
-
-class SemsRelativeScoreSensor(SemsSensorBase):
-    """Current hour relative to the 24h window: 0 = worst, 100 = best."""
-
-    _attr_name = "Relative score"
-    _attr_icon = "mdi:percent"
-    _attr_native_unit_of_measurement = "%"
-    _attr_state_class = SensorStateClass.MEASUREMENT
-
-    def __init__(self, coordinator: SemsCoordinator, entry: ConfigEntry) -> None:
-        super().__init__(coordinator, entry, "relative_score")
-
-    @property
-    def native_value(self) -> float | None:
-        return round(self.coordinator.data["current"]["relative_score"], 1)
 
 
 class SemsRankSensor(SemsSensorBase):

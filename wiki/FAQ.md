@@ -35,13 +35,30 @@ knows today's remaining hours — say 18 — and then ranks run from 1 to 18.
 Check the `hours_available` attribute, or automate on
 `sensor.sems_relative_score` (always 0–100%) instead.
 
-## The score is above 100. Is that a bug?
+## The relative score is 100. Is my power free now?
+
+No! The relative score compares hours **within the coming day**: 100%
+simply means "this is the best hour of the coming 24" — which happens
+every day, also on expensive days. Free power is an absolute fact about
+the price, with its own signals: `binary_sensor.sems_free_power` turns ON,
+and the raw score (in the `scores_24h` attribute) goes above 100. See
+[How the score works](How-the-score-works.md).
+
+## A score in scores_24h is above 100. Is that a bug?
 
 No — that's **free power**. When the all-in price drops below the
-free-power threshold (default €0.00), the score deliberately goes above 100
-to signal "this beats every normal hour". The further below the threshold,
-the higher the score. `binary_sensor.sems_free_power` is ON during these
-hours.
+free-power threshold (default €0.00), the raw score deliberately goes
+above 100 to signal "this beats every normal hour". The further below the
+threshold, the higher the score. `binary_sensor.sems_free_power` is ON
+during these hours.
+
+## Where did sensor.sems_score go?
+
+It still exists but is **disabled by default** since v0.1.7, because it
+was easily confused with the relative score. Enable it via the SEMS device
+page → the entity → settings (gear) → Enabled. The raw per-hour scores are
+always available in the `scores_24h` attribute of
+`sensor.sems_relative_score`.
 
 ## The market price is negative but free power is OFF. Why?
 

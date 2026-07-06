@@ -69,9 +69,10 @@ price alone isn't enough — after adding taxes the all-in price is often
 still positive. That situation still shows up as a very low (even negative)
 *effective* price and thus a high score, but it isn't "free".
 
-## Rank and relative score
+## Rank and relative score — the two numbers you actually use
 
-Two extra views on the same scores, because they're easier to automate on:
+The score above is the engine, but for daily use SEMS gives you two
+easier views on it:
 
 - **Rank** (`sensor.sems_rank`) — all hours in the window are sorted by
   score and numbered 1 (worst) to 24 (best). "Rank ≥ 20" always means "one
@@ -79,6 +80,19 @@ Two extra views on the same scores, because they're easier to automate on:
   are. When two hours tie, the earlier hour gets the lower rank.
 - **Relative score** (`sensor.sems_relative_score`) — the current hour as a
   percentage between the worst (0%) and best (100%) hour of the window.
+
+> ⚠️ **Don't mix up "relative score 100" with "free power".** The relative
+> score compares hours *within the day*: every day has one best hour, so
+> it hits 100% daily — even when that best hour costs 25 cents. "Free"
+> is an absolute fact about the price, and it has its own signals: the
+> raw score goes above 100 and `binary_sensor.sems_free_power` turns ON.
+
+And the raw score itself? It is mainly internal. Honestly, it is *also*
+relative to the day (the cheapest effective hour of the window sets its
+top), which is exactly why it is easy to confuse with the relative score —
+so the raw score sensor is disabled by default. It still lives in the
+`scores_24h` attribute for charts, where its one absolute feature shows
+nicely: free-power hours poke above the 100 line.
 
 ## When data is missing
 

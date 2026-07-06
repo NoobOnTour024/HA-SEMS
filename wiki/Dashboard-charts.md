@@ -3,8 +3,8 @@
 Ready-to-paste dashboard cards for the excellent
 [apexcharts-card](https://github.com/RomRider/apexcharts-card) (install it
 via HACS → search "apexcharts"). All cards read the `scores_24h` attribute
-of `sensor.sems_score`, which always covers the **coming** 24 hours — so
-these charts look forward, not back.
+of `sensor.sems_relative_score`, which always covers the **coming** 24
+hours — so these charts look forward, not back.
 
 Copy a card, open your dashboard → **Edit** → **Add card** → **Manual**,
 and paste.
@@ -40,7 +40,7 @@ yaxis:
     max: 24
     decimals: 0
 series:
-  - entity: sensor.sems_score
+  - entity: sensor.sems_relative_score
     name: All-in price (€/kWh)
     type: column
     yaxis_id: price
@@ -49,7 +49,7 @@ series:
       return entity.attributes.scores_24h.map((row) => {
         return [new Date(row.start).getTime(), row.price];
       });
-  - entity: sensor.sems_score
+  - entity: sensor.sems_relative_score
     name: Effective price (€/kWh)
     type: column
     yaxis_id: price
@@ -58,7 +58,7 @@ series:
       return entity.attributes.scores_24h.map((row) => {
         return [new Date(row.start).getTime(), row.effective_price];
       });
-  - entity: sensor.sems_score
+  - entity: sensor.sems_relative_score
     name: Rank (24 = best hour)
     type: line
     yaxis_id: rank
@@ -96,7 +96,7 @@ apex_config:
   chart:
     stacked: true
 series:
-  - entity: sensor.sems_score
+  - entity: sensor.sems_relative_score
     name: Effective price (€/kWh)
     type: column
     color: '#1baf7a'
@@ -104,7 +104,7 @@ series:
       return entity.attributes.scores_24h.map((row) => {
         return [new Date(row.start).getTime(), row.effective_price];
       });
-  - entity: sensor.sems_score
+  - entity: sensor.sems_relative_score
     name: Solar advantage (€/kWh)
     type: column
     color: '#2a78d6'
@@ -141,7 +141,7 @@ yaxis:
     min: 0
     decimals: 1
 series:
-  - entity: sensor.sems_score
+  - entity: sensor.sems_relative_score
     name: Score
     type: column
     yaxis_id: score
@@ -150,7 +150,7 @@ series:
       return entity.attributes.scores_24h.map((row) => {
         return [new Date(row.start).getTime(), row.score];
       });
-  - entity: sensor.sems_score
+  - entity: sensor.sems_relative_score
     name: Solar forecast (kW)
     type: area
     yaxis_id: pv
@@ -195,7 +195,7 @@ apex_config:
             color: '#ffffff'
             background: '#1baf7a'
 series:
-  - entity: sensor.sems_score
+  - entity: sensor.sems_relative_score
     name: Rank (24 = best)
     type: column
     color: '#2a78d6'
@@ -210,8 +210,8 @@ series:
 - Everything refreshes at the top of each hour, and immediately when you
   move `number.sems_balance` — handy to see the effect of the slider live.
 - Before ~13:00 CET only today's remaining hours are known
-  (`hours_available` on `sensor.sems_score`), so the charts show a shorter
-  window in the morning. That's normal.
+  (`hours_available` on `sensor.sems_relative_score`), so the charts show
+  a shorter window in the morning. That's normal.
 - Free-power hours can push the score above 100 and the effective price
   below zero — both are intentional, see
   [How the score works](How-the-score-works.md).

@@ -4,10 +4,16 @@ After setup you'll find one **SEMS device** (Settings → Devices & services →
 SEMS) with these entities. Everything updates at the top of every hour and
 whenever a source sensor changes.
 
-## `sensor.sems_score`
+## `sensor.sems_relative_score`
 
-The absolute score of the **current hour**: 0 (worst) to 100 (best), and
-above 100 during free-power hours.
+**The main SEMS sensor.** The current hour as a percentage between the
+worst (0%) and best (100%) hour of the coming 24 hours. Handy for "only
+run when we're in the top half of the day" conditions (`above: 50`).
+
+> ⚠️ **100% does not mean free power.** Every day has exactly one
+> best hour, so the relative score reaches 100 every single day — also on
+> an expensive day. It only says: *of the coming 24 hours, this one is the
+> best.* Free power has its own signal: `binary_sensor.sems_free_power`.
 
 Attributes:
 
@@ -18,21 +24,16 @@ Attributes:
     price: 0.07             # all-in price, €/kWh
     effective_price: -0.03  # what a kWh really costs you, €/kWh
     pv: 4600                # forecast solar production, W
-    score: 98.9
+    score: 98.9             # raw score (above 100 = free power)
     relative_score: 96.7
     rank: 24
   ```
 
   This is the attribute to build charts and smarter automations on (see
+  [Dashboard charts](Dashboard-charts.md) and
   [Example automations](Example-automations.md)).
 - **`hours_available`** — how many hours of price data the window currently
   holds (24 after tomorrow's prices are published, fewer before that).
-
-## `sensor.sems_relative_score`
-
-The current hour as a percentage between the worst (0%) and best (100%)
-hour of the window. Handy for "only run when we're in the top half of the
-day" conditions (`above: 50`).
 
 ## `sensor.sems_rank`
 
@@ -42,6 +43,26 @@ are unique — no two hours share a rank. Great for automations: "rank above
 
 Attribute `hours_available`: with fewer than 24 known hours, the best
 possible rank is lower too (e.g. 18 when 18 hours are known).
+
+## `sensor.sems_score` (advanced — disabled by default)
+
+The raw internal score of the current hour: 0–100, and **above 100 during
+free-power hours** (105 = 5 cents below the free threshold, and so on).
+
+This sensor is disabled by default because it is easily confused with the
+relative score. The honest truth: the raw score is *also* relative to the
+coming 24 hours (the cheapest effective hour of the window defines the
+top). The relative score is simply the raw score stretched so the worst
+hour is exactly 0 and the best exactly 100. The only extra information in
+the raw score: on a day where all hours are nearly equal, raw scores
+cluster together (say, all between 24 and 30) while the relative score
+still spans 0–100 — the raw score then tells you "today it hardly
+matters", where the relative score exaggerates tiny differences.
+
+Need it anyway? Enable it: the SEMS device page → this entity → settings
+(gear) → *Enabled*. The per-hour raw scores are always available in
+`scores_24h` on the relative score sensor, whether this entity is enabled
+or not.
 
 ## `sensor.sems_current_price`
 

@@ -80,17 +80,18 @@ automation:
           entity_id: switch.boiler
 ```
 
-## 4. Charge the EV only during genuinely good hours
+## 4. Charge the EV only during the best hours
 
-Combine an absolute minimum score with free-power override:
+Combine a high relative score (the top of the day) with a free-power
+override:
 
 ```yaml
 automation:
   - alias: "EV charging during good hours"
     trigger:
       - platform: numeric_state
-        entity_id: sensor.sems_score
-        above: 70
+        entity_id: sensor.sems_relative_score
+        above: 80
       - platform: state
         entity_id: binary_sensor.sems_free_power
         to: "on"
@@ -109,6 +110,6 @@ automation:
   use `sensor.sems_relative_score` instead (it always spans 0–100%).
 - **Everything updates hourly.** Numeric-state triggers fire when the value
   crosses the threshold, which happens on the hour.
-- **The `scores_24h` attribute** on `sensor.sems_score` contains the whole
-  window, including *future* hours — advanced users can template on it,
-  e.g. "is a much better hour coming within 3 hours?".
+- **The `scores_24h` attribute** on `sensor.sems_relative_score` contains
+  the whole window, including *future* hours — advanced users can template
+  on it, e.g. "is a much better hour coming within 3 hours?".
