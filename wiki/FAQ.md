@@ -73,6 +73,16 @@ No, by design. SEMS gives you honest numbers; your automations decide what
 to do with them. See [Example automations](Example-automations.md) for
 copy-paste starting points.
 
+## Which solar forecast integrations are supported?
+
+Any integration that can show a solar forecast on Home Assistant's Energy
+dashboard — including core **Forecast.Solar** and **Solcast**. Pick any one
+of its sensors as the PV forecast entity; SEMS finds the hourly data
+itself. (Forecast.Solar's entities have no hourly attributes — that's
+expected, SEMS fetches the forecast through the same official route the
+Energy dashboard uses.) Integrations that expose hourly attributes on the
+entity (`watts` dict or a Solcast-style `forecast` list) work too.
+
 ## Which price integrations are supported?
 
 1. Any sensor with Nordpool-style `raw_today`/`raw_tomorrow` attributes

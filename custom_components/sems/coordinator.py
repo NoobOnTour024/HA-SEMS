@@ -39,6 +39,7 @@ from homeassistant.helpers.event import (
     async_track_time_change,
 )
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.loader import async_get_integration
 from homeassistant.util import dt as dt_util
 
 from .calculator import compute_scores, to_all_in_price, to_raw_price
@@ -179,6 +180,65 @@ async def _fetch_nordpool_action_prices(
                 # Nord Pool action prices are per MWh -> convert to per kWh.
                 pairs.append((start, float(price) / 1000))
     return pairs
+
+
+async def _fetch_energy_platform_forecast(
+    hass: HomeAssistant, entity_id: str
+) -> tuple[str, dict[datetime, float]] | None:
+    """Fetch the hourly PV forecast the way the Energy dashboard does.
+
+    Integrations like Forecast.Solar and Solcast do not necessarily expose
+    their hourly forecast as entity attributes, but they DO provide it to
+    Home Assistant's Energy dashboard through an official "energy" platform
+    with an ``async_get_solar_forecast`` function. SEMS uses exactly that
+    same route: it looks up which integration the selected PV entity
+    belongs to and asks it for its solar forecast.
+
+    The forecast comes back as ``{"wh_hours": {timestamp: watt_hours}}``.
+    Watt-hours per (part of an) hour are summed per whole hour, which makes
+    the number equal to the average power in Watts for that hour — exactly
+    what the calculator expects.
+
+    Returns ``None`` when the entity's integration does not offer a solar
+    forecast (meaning: try something else), otherwise a
+    (source_description, {hour_start: watts}) tuple.
+    """
+    registry = er.async_get(hass)
+    reg_entry = registry.async_get(entity_id)
+    if reg_entry is None or not reg_entry.config_entry_id:
+        return None
+
+    try:
+        integration = await async_get_integration(hass, reg_entry.platform)
+        energy_platform = await integration.async_get_platform("energy")
+    except Exception:  # noqa: BLE001 - integration has no "energy" platform
+        return None
+    if not hasattr(energy_platform, "async_get_solar_forecast"):
+        return None
+
+    try:
+        forecast = await energy_platform.async_get_solar_forecast(
+            hass, reg_entry.config_entry_id
+        )
+    except Exception as err:  # noqa: BLE001 - never let a foreign integration crash SEMS
+        _LOGGER.warning(
+            "SEMS could not fetch the solar forecast from %s: %s",
+            reg_entry.platform, err,
+        )
+        return None
+    if not isinstance(forecast, dict) or not isinstance(forecast.get("wh_hours"), dict):
+        return None
+
+    hourly: dict[datetime, float] = {}
+    for key, wh in forecast["wh_hours"].items():
+        start = _parse_datetime(key)
+        if start is None or not isinstance(wh, (int, float)):
+            continue
+        hour = _hour_start(start)
+        hourly[hour] = hourly.get(hour, 0.0) + float(wh)
+    if not hourly:
+        return None
+    return (f"solar forecast from the {reg_entry.platform} integration", hourly)
 
 
 def _parse_pv_attributes(state: State) -> tuple[str, list[tuple[datetime, float]]]:
@@ -354,22 +414,36 @@ class SemsCoordinator(DataUpdateCoordinator[dict]):
         export_prices = [p - export_fee for p in raw_prices]
 
         # ---- 4. Get the PV forecast, aligned to the same hours ----
+        # Two routes, tried in order:
+        #   a. hourly attributes on the entity itself (watts dict,
+        #      Solcast-style forecast lists),
+        #   b. the integration's official solar forecast — the same data
+        #      the Energy dashboard shows. This is how core Forecast.Solar
+        #      works: its entities carry no hourly attributes at all.
         pv_watts = [0.0] * hours_available
         pv_source = "no PV entity configured"
         if self.pv_entity_id:
+            hourly_pv: dict[datetime, float] = {}
             pv_state = self.hass.states.get(self.pv_entity_id)
             if pv_state is None:
                 pv_source = f"PV entity {self.pv_entity_id} does not exist"
                 _LOGGER.warning("SEMS: %s; treating PV as 0 W", pv_source)
             else:
                 pv_source, pv_pairs = _parse_pv_attributes(pv_state)
-                hourly_pv = _to_hourly(pv_pairs)
-                pv_watts = [hourly_pv.get(hour, 0.0) for hour in starts]
-                if not pv_pairs:
+                if pv_pairs:
+                    hourly_pv = _to_hourly(pv_pairs)
+                else:
+                    energy_forecast = await _fetch_energy_platform_forecast(
+                        self.hass, self.pv_entity_id
+                    )
+                    if energy_forecast is not None:
+                        pv_source, hourly_pv = energy_forecast
+                if not hourly_pv:
                     _LOGGER.warning(
                         "SEMS could not read an hourly PV forecast from %s "
                         "(%s); treating PV as 0 W", self.pv_entity_id, pv_source,
                     )
+            pv_watts = [hourly_pv.get(hour, 0.0) for hour in starts]
 
         # ---- 5. Compute the scores (pure function, unit-tested) ----
         pv_capacity = float(self._conf(CONF_PV_CAPACITY, DEFAULT_PV_CAPACITY))

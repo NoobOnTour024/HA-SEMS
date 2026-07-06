@@ -27,9 +27,22 @@ formats and detects the right one automatically:
 
 ### PV forecast entity (optional)
 
-The sensor that knows your expected solar production per hour, in Watts.
-Forecast.Solar-style sensors (with a `watts` attribute) and Solcast-style
-sensors (with a `forecast`/`detailedForecast` attribute) are understood.
+Pick **any sensor of your solar forecast integration** — for example
+Forecast.Solar's *Estimated energy production - today*. SEMS finds the
+hourly forecast in one of two ways, automatically:
+
+1. **Hourly attributes on the entity itself** — some integrations put the
+   hourly forecast in attributes (a `watts` dict, or a Solcast-style
+   `forecast` list). If your entity has those, SEMS reads them directly.
+2. **The Energy dashboard route** — core **Forecast.Solar** entities carry
+   no hourly attributes at all. That's fine: the hourly data exists inside
+   the integration (the Energy dashboard shows it), and SEMS asks for it
+   through the same official mechanism the Energy dashboard uses. It only
+   needs to know *which* integration to ask — which is why picking any one
+   of its sensors is enough. This also works for Solcast and any other
+   integration that can show a solar forecast on the Energy dashboard.
+
+The diagnostics sensor tells you which route was used (`pv_source`).
 
 No solar panels? Leave it empty. SEMS then treats all solar values as 0 and
 the score is driven by price alone.
