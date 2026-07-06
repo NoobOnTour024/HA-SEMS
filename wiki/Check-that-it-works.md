@@ -10,24 +10,34 @@ Open **Developer tools → States** and look it up.
 
 **The state should say something like:**
 
-> `OK - 24h of prices, PV forecast found`
+> `OK - 24h of prices, PV forecast found (peak 4600 W)`
 
 What to check:
 
 | You see | It means |
 |---|---|
 | `24h of prices` (or 13–23h before ~13:00) | Prices are being read correctly. |
-| `PV forecast found` | Your solar forecast is being read. |
+| `PV forecast found (peak ... W)` | Your solar forecast is being read — the peak should roughly match what your Energy dashboard predicts for the best hour. |
 | `no PV data (treated as 0 W)` | Fine if you configured no PV entity; a problem if you did. |
 | The sensor is `unavailable` | Fewer than 6 hours of prices found — check your price entity and the Home Assistant log (search for "SEMS"). |
 
-Now open the sensor's **attributes**. You'll see, hour by hour:
+Now open the sensor's **attributes**:
 
-- `raw_prices` — the bare market prices,
-- `all_in_prices` — after tax conversion (what you pay),
-- `export_prices` — what exporting earns (market price minus fee),
-- `pv_watts` — the solar forecast,
-- `price_source` / `pv_source` — which format SEMS detected.
+- `price_source` / `pv_source` — where SEMS got its data (e.g. *"solar
+  forecast from the forecast_solar integration"*).
+- `hourly_overview` — **one row per hour with every number SEMS works
+  with**, so you can verify the whole chain with your own eyes:
+
+  ```yaml
+  - hour: "2026-07-06 13:00"
+    pv_forecast_w: 4600      # compare with your Energy dashboard
+    raw_price: 0.058         # bare market price
+    all_in_price: 0.07       # what you pay (compare with your energy app)
+    export_price: 0.038      # what exporting earns
+    effective_price: -0.03   # what a kWh really costs you this hour
+    score: 98.9
+    rank: 24
+  ```
 
 ## Step 2 — Verify one price by hand
 

@@ -192,27 +192,39 @@ class SemsDiagnosticsSensor(SemsSensorBase):
     @property
     def native_value(self) -> str:
         data = self.coordinator.data
-        pv_ok = data["pv_watts"] and max(data["pv_watts"]) > 0
-        pv_note = "PV forecast found" if pv_ok else "no PV data (treated as 0 W)"
+        pv_peak = max(data["pv_watts"]) if data["pv_watts"] else 0.0
+        if pv_peak > 0:
+            pv_note = f"PV forecast found (peak {pv_peak:.0f} W)"
+        else:
+            pv_note = "no PV data (treated as 0 W)"
         return f"OK - {data['hours_available']}h of prices, {pv_note}"
 
     @property
     def extra_state_attributes(self) -> dict:
         data = self.coordinator.data
+        # One human-checkable row per hour, so a user can compare every
+        # number against the source integration (price app, Energy
+        # dashboard) with their own eyes.
+        hourly_overview = [
+            {
+                "hour": entry["start"][:16].replace("T", " "),
+                "pv_forecast_w": round(entry["pv"]),
+                "raw_price": raw_price,
+                "all_in_price": round(entry["price"], 5),
+                "export_price": round(entry["export_price"], 5),
+                "effective_price": round(entry["effective_price"], 5),
+                "score": round(entry["score"], 1),
+                "rank": entry["rank"],
+            }
+            for entry, raw_price in zip(data["scores"], data["raw_prices"])
+        ]
         return {
             "price_source": data["price_source"],
             "pv_source": data["pv_source"],
             "price_type": data["price_type"],
             "pv_capacity": data["pv_capacity"],
             "hours_available": data["hours_available"],
-            "window_start": data["window_start"],
             "balance": data["balance"],
-            "raw_prices": data["raw_prices"],
-            "all_in_prices": data["all_in_prices"],
-            "export_prices": data["export_prices"],
-            "pv_watts": data["pv_watts"],
-            "effective_prices": [
-                round(entry["effective_price"], 5) for entry in data["scores"]
-            ],
+            "hourly_overview": hourly_overview,
             "last_computed": data["last_computed"],
         }

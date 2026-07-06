@@ -77,12 +77,14 @@ Changes take effect immediately and survive restarts.
 A **temporary verification aid**, created only while debug mode is enabled
 in the options. The state is a plain-language health message, e.g.:
 
-> `OK - 24h of prices, PV forecast found`
+> `OK - 24h of prices, PV forecast found (peak 4600 W)`
 
-The attributes show every intermediate step, hour by hour: which source
-format was detected, the raw market prices, the all-in prices, the export
-prices, the effective prices and the PV watts. If a number ever looks off,
-this is where you check what SEMS is actually working with.
+The attributes show where the data came from (`price_source`, `pv_source`)
+and an `hourly_overview`: one row per hour with the PV forecast, the raw
+market price, the all-in price, the export price, the effective price, the
+score and the rank. If a number ever looks off, this is where you check
+what SEMS is actually working with — see
+[Check that it works](Check-that-it-works.md).
 
 Turn debug mode off via **Configure** once you trust the numbers — the
 sensor disappears.
