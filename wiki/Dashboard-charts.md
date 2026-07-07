@@ -6,18 +6,21 @@ via HACS → search "apexcharts"). **Every card on this page has been loaded
 and tested in a real Home Assistant** — screenshots included.
 
 All cards read the `scores_24h` attribute of `sensor.sems_relative_score`
-and run **from midnight to midnight**, with a dashed *now* line marking
-the current moment.
+and span **36 hours starting at midnight** — the whole of today plus
+tomorrow morning — with a dashed *now* line marking the current moment.
+That way you can already see tomorrow's scores in the evening, when
+they matter most. Prefer a different span? Change `graph_span` to `24h`
+(today only) or `48h` (both days in full) — one line per card.
 
 Two things to know:
 
-- **SEMS looks forward.** The data starts at the current block, so the
-  part of the chart before the *now* line is empty. Want yesterday's
-  history too? See the tip at the bottom.
+- **SEMS looks forward.** The data starts at the current block and
+  reaches at most 24 hours ahead, so the chart is empty before the *now*
+  line and beyond the end of the window. Want yesterday's history too?
+  See the tip at the bottom.
 - **Unknown blocks show as gaps.** Before ~13:00 CET tomorrow's prices are
   not published yet; those blocks are `null` in `scores_24h` and simply
-  show nothing. Prefer to see tomorrow as well? Change `graph_span` to
-  `48h` — the chart then spans today and tomorrow.
+  show nothing. The gap fills in by itself once the prices arrive.
 
 Copy a card, open your dashboard → **Edit** → **Add card** → **Manual**,
 and paste.
@@ -36,8 +39,8 @@ the **rank**: it touches 24 at the best hour of the day.
 type: custom:apexcharts-card
 header:
   show: true
-  title: SEMS — prices and rank (today)
-graph_span: 24h
+  title: SEMS — prices and rank
+graph_span: 36h
 span:
   start: day
 now:
@@ -105,7 +108,7 @@ type: custom:apexcharts-card
 header:
   show: true
   title: SEMS — what you pay vs what it really costs
-graph_span: 24h
+graph_span: 36h
 span:
   start: day
 now:
@@ -152,8 +155,8 @@ poke above the 100 line.
 type: custom:apexcharts-card
 header:
   show: true
-  title: SEMS — score and sun (today)
-graph_span: 24h
+  title: SEMS — score and sun
+graph_span: 36h
 span:
   start: day
 now:
@@ -214,7 +217,7 @@ type: custom:apexcharts-card
 header:
   show: true
   title: SEMS — best hours for big appliances
-graph_span: 24h
+graph_span: 36h
 span:
   start: day
 now:

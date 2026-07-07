@@ -468,6 +468,30 @@ class SemsCoordinator(DataUpdateCoordinator[dict]):
         # Exporting earns the bare market price minus the feed-in fee.
         export_prices = [p - export_fee for p in raw_prices]
 
+        # Plausibility check on the price-type setting. SEMS reads whatever
+        # entity the user picked; integrations like Frank Energie offer
+        # several price sensors (market, market+vat, all-in) that all look
+        # alike. A Dutch all-in price averages roughly €0.20-0.35/kWh while
+        # bare market prices average far lower — a mismatch here means the
+        # scores would be silently wrong, so flag it in the diagnostics.
+        average_all_in = sum(all_in_prices) / len(all_in_prices)
+        if price_type != PRICE_TYPE_RAW and average_all_in < 0.10:
+            sanity_check = (
+                f"The average source price (€{average_all_in:.3f}/kWh) looks like a "
+                "bare market price, but the price type is set to all-in. Did you "
+                "pick the all-in sensor of your price integration — or should the "
+                "price type be raw?"
+            )
+        elif price_type == PRICE_TYPE_RAW and average_all_in > 0.45:
+            sanity_check = (
+                f"After adding taxes the average price is €{average_all_in:.3f}/kWh, "
+                "which is unusually high. Your source may already include taxes — "
+                "consider the all-in price type, or check that you picked the "
+                "market-price sensor."
+            )
+        else:
+            sanity_check = "OK"
+
         # ---- 4. Get the PV forecast, aligned to the same blocks ----
         # Two routes, tried in order:
         #   a. hourly attributes on the entity itself (watts dict,
@@ -573,6 +597,7 @@ class SemsCoordinator(DataUpdateCoordinator[dict]):
             "pv_source": pv_source,
             "price_type": price_type,
             "pv_capacity": pv_capacity,
+            "sanity_check": sanity_check,
             "source_prices": [round(p, 5) for p in source_prices],
             "raw_prices": [round(p, 5) for p in raw_prices],
             "all_in_prices": [round(p, 5) for p in all_in_prices],

@@ -68,7 +68,7 @@ type: custom:apexcharts-card
 header:
   show: true
   title: SEMS — score for today
-graph_span: 24h
+graph_span: 36h
 span:
   start: day
 now:

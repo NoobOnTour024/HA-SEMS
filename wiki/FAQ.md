@@ -28,6 +28,30 @@ only "costs" the missed export payment (a few cents) instead of the full
 tariff. This is the core idea of SEMS: see
 [How the score works](How-the-score-works.md).
 
+## Frank Energie has several price entities. Which one do I pick?
+
+SEMS reads whatever entity you point it at — it cannot know which price
+variant a sensor contains. So match the entity to the price type setting:
+
+- Pick **"Current electricity price (All-in)"** and keep the price type
+  on **All-in** (the default), or
+- pick **"Current electricity market price"** and set the price type to
+  **Raw**.
+
+Two safety nets: `sensor.sems_current_price` should match what your
+energy app says you pay right now, and the diagnostics sensor runs a
+plausibility check — if the average price looks like a bare market price
+while the price type says all-in (or the other way around), its state
+changes to `CHECK SETTINGS - ...` with an explanation in the
+`sanity_check` attribute.
+
+## Frank Energie shows 15-minute prices, but SEMS shows one price per hour?
+
+That's the hour-blocks resolution (the default): SEMS averages the four
+quarters of each hour, so `sensor.sems_current_price` is the average of
+the current hour. Prefer planning per quarter? Switch Configure →
+Planning resolution to quarter-hour blocks.
+
 ## My charts show a gap for tomorrow. Is that a bug?
 
 No — those blocks have no published prices yet (they arrive around 13:00

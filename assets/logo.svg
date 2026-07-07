@@ -1,25 +1,23 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="SEMS logo: a sun above rising score bars">
-  <!-- SEMS logo: a sun (solar forecast) shining on rising score bars
-       (the hourly scores). Original artwork for the SEMS project, MIT. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="SEMS logo: a sun above score bars rising from red to green">
+  <!-- SEMS logo: a sun (solar forecast) shining on score bars that rise
+       from a small red bar (bad hour) to a tall green one (best hour).
+       Original artwork for the SEMS project, MIT. -->
   <rect x="8" y="8" width="240" height="240" rx="48" fill="#1b2a41"/>
   <!-- sun -->
-  <circle cx="88" cy="88" r="34" fill="#f6b93b"/>
+  <circle cx="84" cy="84" r="32" fill="#f6b93b"/>
   <g stroke="#f6b93b" stroke-width="10" stroke-linecap="round">
-    <line x1="88" y1="30" x2="88" y2="14"/>
-    <line x1="88" y1="162" x2="88" y2="146"/>
-    <line x1="30" y1="88" x2="14" y2="88"/>
-    <line x1="146" y1="88" x2="162" y2="88"/>
-    <line x1="47" y1="47" x2="36" y2="36"/>
-    <line x1="129" y1="129" x2="140" y2="140"/>
-    <line x1="47" y1="129" x2="36" y2="140"/>
-    <line x1="129" y1="47" x2="140" y2="36"/>
+    <line x1="84" y1="28" x2="84" y2="12"/>
+    <line x1="84" y1="156" x2="84" y2="140"/>
+    <line x1="28" y1="84" x2="12" y2="84"/>
+    <line x1="140" y1="84" x2="156" y2="84"/>
+    <line x1="44" y1="44" x2="33" y2="33"/>
+    <line x1="124" y1="124" x2="135" y2="135"/>
+    <line x1="44" y1="124" x2="33" y2="135"/>
+    <line x1="124" y1="44" x2="135" y2="33"/>
   </g>
-  <!-- score bars: a day getting better hour by hour -->
-  <g fill="#3fc380">
-    <rect x="132" y="182" width="24" height="40" rx="6"/>
-    <rect x="164" y="150" width="24" height="72" rx="6"/>
-    <rect x="196" y="110" width="24" height="112" rx="6"/>
-  </g>
-  <!-- the current hour marker -->
-  <rect x="100" y="206" width="24" height="16" rx="6" fill="#7f8fa6"/>
+  <!-- score bars: hours going from bad (small, red) to best (tall, green) -->
+  <rect x="100" y="196" width="26" height="26" rx="6" fill="#e24b4a"/>
+  <rect x="134" y="170" width="26" height="52" rx="6" fill="#ef8a2f"/>
+  <rect x="168" y="136" width="26" height="86" rx="6" fill="#f6d03b"/>
+  <rect x="202" y="94" width="26" height="128" rx="6" fill="#3fc380"/>
 </svg>

@@ -241,7 +241,10 @@ class SemsDiagnosticsSensor(SemsSensorBase):
             pv_note = f"PV forecast found (peak {pv_peak:.0f} W)"
         else:
             pv_note = "no PV data (treated as 0 W)"
-        return f"OK - {data['hours_available']}h of prices, {pv_note}"
+        # The sanity check guards against a price-type/entity mismatch;
+        # its full explanation is in the sanity_check attribute.
+        prefix = "OK" if data["sanity_check"] == "OK" else "CHECK SETTINGS"
+        return f"{prefix} - {data['hours_available']}h of prices, {pv_note}"
 
     @property
     def extra_state_attributes(self) -> dict:
@@ -266,6 +269,7 @@ class SemsDiagnosticsSensor(SemsSensorBase):
             "price_source": data["price_source"],
             "pv_source": data["pv_source"],
             "price_type": data["price_type"],
+            "sanity_check": data["sanity_check"],
             "pv_capacity": data["pv_capacity"],
             "hours_available": data["hours_available"],
             "block_minutes": data["block_minutes"],
