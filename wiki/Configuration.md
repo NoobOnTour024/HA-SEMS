@@ -72,6 +72,18 @@ You can always verify the result: `sensor.sems_current_price` shows the
 all-in price SEMS calculated for this hour. It should match what your
 supplier's app says you pay right now.
 
+### Planning resolution
+
+- **Hour blocks** (default) — 24 blocks per day. Best for devices that
+  cannot switch quickly, like heat pumps.
+- **Quarter-hour blocks** — 96 blocks per day, following the 15-minute
+  prices some suppliers already use. Rank then runs 1–96, `scores_24h`
+  holds 96 entries, and everything recomputes every quarter.
+
+Sources with hourly prices work fine in quarter mode (each quarter gets
+its hour's price), and 15-minute sources work fine in hour mode (SEMS
+averages them). Pick what fits your devices.
+
 ### Export fee (feed-in costs)
 
 What your supplier charges per exported kWh ("terugleverkosten"), default

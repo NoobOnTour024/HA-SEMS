@@ -1,3 +1,5 @@
+<img src="assets/logo.svg" alt="SEMS logo" width="120" align="right"/>
+
 # SEMS — Simple Energy Management System
 
 A Home Assistant integration that answers one simple question, every hour:
@@ -16,6 +18,25 @@ solar) and does the math.
 
 📖 **New here? The [wiki](wiki/Home.md) explains everything in plain
 language** — including how the calculation works, with pictures.
+
+## What it looks like
+
+The all-in price, the *effective* price (what a kWh really costs you once
+your solar production is counted in) and the rank of every hour of today
+— with ready-to-paste cards from the
+[Dashboard charts wiki page](wiki/Dashboard-charts.md):
+
+![Prices and rank](assets/screenshots/card-prices-rank.png)
+
+Where your money actually goes, hour by hour — the blue part is what your
+panels save you:
+
+![Price breakdown](assets/screenshots/card-price-breakdown.png)
+
+And the planner view: every column above the dashed line is a top-5 hour,
+exactly when the example automations fire:
+
+![Appliance planner](assets/screenshots/card-appliance-planner.png)
 
 ## How the score works (the short version)
 
@@ -88,6 +109,7 @@ SEMS → Configure**. Details: [Configuration](wiki/Configuration.md).
 | `sensor.sems_rank` | Rank of the current hour: 1 = worst of the 24h window, 24 = best. |
 | `sensor.sems_current_price` | The all-in price of the current hour (to verify the tax conversion). |
 | `binary_sensor.sems_free_power` | ON when the current all-in price is below the free-power threshold. |
+| `binary_sensor.sems_best_2h_block` (+ 3h, 4h) | ON when the best consecutive 2/3/4-hour run starts now — for appliances that need longer than one block. Attributes show the planned start. |
 | `number.sems_balance` | The 0–100 slider: 100 = only price matters, 0 = only solar self-consumption matters. |
 | `sensor.sems_score` | Advanced, disabled by default: the raw internal score (0–100, above 100 = free power). |
 | `sensor.sems_diagnostics` | Temporary verification sensor (debug mode): shows exactly what data SEMS found. |
@@ -148,10 +170,12 @@ More examples, plus ready-made ApexCharts dashboard cards:
 
 ## Good to know
 
-- Before ~13:00 CET, tomorrow's prices are not published yet, so the window
-  is shorter than 24 hours. SEMS then simply scores the hours it *does* know
-  (see the `hours_available` attribute). Below 6 known hours the entities
-  become unavailable.
-- Scores are recomputed at the top of every hour and whenever a source
+- SEMS plans in **hour blocks** by default; a setting switches to
+  **quarter-hour blocks** (96 per day) for suppliers with 15-minute
+  prices. Hourly sources work fine in quarter mode and vice versa.
+- Before ~13:00 CET, tomorrow's prices are not published yet. Those blocks
+  show up as empty (`null`) in `scores_24h` — charts show a gap, nothing
+  is guessed. Below 6 known hours the entities become unavailable.
+- Scores are recomputed at the start of every block and whenever a source
   sensor updates.
 - No external connections, no dependencies, everything runs locally.

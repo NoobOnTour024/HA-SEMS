@@ -18,6 +18,7 @@
         "description": "The defaults work out of the box, but the closer these values match your energy contract, the more accurate the scores. Everything can be changed later via Configure.",
         "data": {
           "price_type": "What kind of price does the source entity provide?",
+          "resolution": "Planning resolution",
           "export_fee": "Export fee (feed-in costs)",
           "pv_capacity": "Solar installation size (0 = automatic)",
           "price_free_threshold": "Free power threshold (all-in price)",
@@ -25,6 +26,7 @@
         },
         "data_description": {
           "price_type": "All-in: the price already includes taxes and VAT — most supplier integrations (EnergyZero, Zonneplan, Frank Energie) work like this. Raw: the bare market price (core Nord Pool). The next screen asks for your taxes in both cases.",
+          "resolution": "Hour blocks (default) suit devices that cannot switch quickly, like heat pumps. Quarter-hour blocks follow the 15-minute prices some suppliers already use; rank then runs 1-96 instead of 1-24.",
           "export_fee": "What your supplier charges per exported kWh ('terugleverkosten'). Enter as a positive number — SEMS subtracts it from the market price to calculate what exporting earns.",
           "pv_capacity": "Total rated power of your panels in Watts, e.g. 12 panels × 405 Wp = 4860. Used to estimate how much of your consumption your own solar power covers per hour. Real output rarely reaches this rated maximum and that is fine — it makes the estimate slightly conservative. 0 = automatic: assume the sunniest hour of the day covers your consumption.",
           "price_free_threshold": "Below this all-in price, power counts as free: the score goes above 100 and the free-power sensor turns on.",
@@ -53,6 +55,7 @@
         "title": "SEMS settings",
         "data": {
           "price_type": "What kind of price does the source entity provide?",
+          "resolution": "Planning resolution",
           "export_fee": "Export fee (feed-in costs)",
           "pv_capacity": "Solar installation size (0 = automatic)",
           "price_free_threshold": "Free power threshold (all-in price)",
@@ -60,6 +63,7 @@
         },
         "data_description": {
           "price_type": "All-in: the price already includes taxes and VAT — most supplier integrations (EnergyZero, Zonneplan, Frank Energie) work like this. Raw: the bare market price (core Nord Pool). The next screen asks for your taxes in both cases.",
+          "resolution": "Hour blocks (default) suit devices that cannot switch quickly, like heat pumps. Quarter-hour blocks follow the 15-minute prices some suppliers already use; rank then runs 1-96 instead of 1-24.",
           "export_fee": "What your supplier charges per exported kWh ('terugleverkosten'). Enter as a positive number — SEMS subtracts it from the market price to calculate what exporting earns.",
           "pv_capacity": "Total rated power of your panels in Watts, e.g. 12 panels × 405 Wp = 4860. Used to estimate how much of your consumption your own solar power covers per hour. Real output rarely reaches this rated maximum and that is fine — it makes the estimate slightly conservative. 0 = automatic: assume the sunniest hour of the day covers your consumption.",
           "price_free_threshold": "Below this all-in price, power counts as free: the score goes above 100 and the free-power sensor turns on.",
@@ -87,6 +91,12 @@
       "options": {
         "all_in": "All-in (taxes and VAT already included)",
         "raw": "Raw market price (SEMS adds taxes and VAT)"
+      }
+    },
+    "resolution": {
+      "options": {
+        "hour": "Hour blocks (24 per day)",
+        "quarter_hour": "Quarter-hour blocks (96 per day)"
       }
     }
   }

@@ -32,17 +32,55 @@ Attributes:
   This is the attribute to build charts and smarter automations on (see
   [Dashboard charts](Dashboard-charts.md) and
   [Example automations](Example-automations.md)).
+
+  The list always spans the full 24-hour window. Blocks whose prices are
+  **not published yet** (typically tomorrow, before ~13:00 CET) appear
+  with `null` values — charts show a gap there, nothing is guessed.
+- **`best_blocks`** — the best consecutive 2/3/4-hour runs, with their
+  planned start/end and average score (see the block sensors below).
 - **`hours_available`** — how many hours of price data the window currently
   holds (24 after tomorrow's prices are published, fewer before that).
+- **`block_minutes`** — 60 (hour blocks, default) or 15 (quarter-hour
+  blocks), following the resolution setting.
 
 ## `sensor.sems_rank`
 
-The current hour's rank within the window: **1 = worst, 24 = best**. Ranks
-are unique — no two hours share a rank. Great for automations: "rank above
-19" always means "one of the 5 best hours of the coming day".
+The current block's rank within the window: **1 = worst, 24 = best** (or
+**1–96** with quarter-hour resolution). Ranks are unique — no two blocks
+share a rank. Great for automations: "rank above 19" always means "one of
+the 5 best hours of the coming day".
 
 Attribute `hours_available`: with fewer than 24 known hours, the best
 possible rank is lower too (e.g. 18 when 18 hours are known).
+
+## `binary_sensor.sems_best_2h_block` (and 3h, 4h)
+
+For appliances that need **more than one block** to finish — a dishwasher
+that runs 2 hours, a washing machine cycle of 3. Each sensor finds the
+best *consecutive* run of that length in the coming window and turns
+**ON** when that run starts now: the moment to switch the appliance on.
+
+Attributes: `planned_start`, `planned_end` and `average_score` of the
+best run — always visible, so you can also automate on the start time or
+show the plan on a dashboard. Because SEMS re-plans every block, the
+planned start can shift when new prices arrive.
+
+```yaml
+automation:
+  - alias: "Dishwasher in the best 2-hour window"
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.sems_best_2h_block
+        to: "on"
+    condition:
+      - condition: state
+        entity_id: input_boolean.dishwasher_ready
+        state: "on"
+    action:
+      - service: switch.turn_on
+        target:
+          entity_id: switch.dishwasher
+```
 
 ## `sensor.sems_score` (advanced — disabled by default)
 
@@ -110,3 +148,16 @@ what SEMS is actually working with — see
 
 Turn debug mode off via **Configure** once you trust the numbers — the
 sensor disappears.
+
+## Debug series sensors (debug mode only)
+
+Three more temporary sensors, each showing one ingredient of the score so
+you can chart and inspect them separately. The state is the value for the
+current block; the `series` attribute holds one `{start, value}` entry
+per block of the window:
+
+| Entity | Shows |
+|---|---|
+| `sensor.sems_source_price` | The price exactly as read from your price entity, before any conversion — compare with the source integration. |
+| `sensor.sems_effective_price` | What a kWh really costs you per block (the heart of the score). |
+| `sensor.sems_pv_forecast` | The solar forecast SEMS is working with, in Watts per block. |

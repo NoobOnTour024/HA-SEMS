@@ -28,6 +28,19 @@ only "costs" the missed export payment (a few cents) instead of the full
 tariff. This is the core idea of SEMS: see
 [How the score works](How-the-score-works.md).
 
+## My charts show a gap for tomorrow. Is that a bug?
+
+No — those blocks have no published prices yet (they arrive around 13:00
+CET). SEMS deliberately shows them as empty (`null`) instead of guessing.
+Once the prices arrive, the gap fills in automatically.
+
+## Hour blocks or quarter-hour blocks?
+
+Hour blocks (the default) suit devices that shouldn't switch often, like
+heat pumps. Quarter-hour blocks follow the 15-minute prices some
+suppliers use — rank then runs 1–96 instead of 1–24. Change it any time
+via Configure → Planning resolution.
+
 ## Why doesn't rank 24 exist this morning?
 
 Tomorrow's prices are published around 13:00 CET. Before that, SEMS only

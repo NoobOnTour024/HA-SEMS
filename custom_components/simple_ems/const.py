@@ -9,7 +9,7 @@ coordinator, and entities all agree on the same names and defaults.
 # The integration domain. This is the unique technical name of the
 # integration inside Home Assistant (used in entity ids, config entries,
 # and the folder name under custom_components/).
-DOMAIN = "sems"
+DOMAIN = "simple_ems"
 
 # ---------------------------------------------------------------------------
 # Configuration keys (used by the config flow and options flow)
@@ -48,8 +48,16 @@ CONF_EXPORT_FEE = "export_fee"
 # 0 = unknown: assume the sunniest forecast hour of the day covers it.
 CONF_PV_CAPACITY = "pv_capacity"
 
-# Temporary verification aid: when enabled, SEMS creates a diagnostics sensor
-# that shows in plain language what data it found and how prices were converted.
+# The time resolution SEMS plans in. Hour blocks (default) suit devices
+# that cannot switch quickly (e.g. heat pumps); quarter-hour blocks follow
+# the 15-minute market prices some suppliers already use.
+CONF_RESOLUTION = "resolution"
+RESOLUTION_HOUR = "hour"
+RESOLUTION_QUARTER = "quarter_hour"
+
+# Temporary verification aid: when enabled, SEMS creates a diagnostics
+# sensor plus separate source-price / effective-price / PV-forecast sensors
+# that show exactly what data SEMS found and computed.
 CONF_DEBUG_MODE = "debug_mode"
 
 # ---------------------------------------------------------------------------
@@ -65,16 +73,21 @@ DEFAULT_PRICE_FREE_THRESHOLD = 0.00  # €/kWh (all-in)
 DEFAULT_EXPORT_FEE = 0.020  # €/kWh, typical Dutch feed-in fee ("terugleverkosten")
 DEFAULT_PV_CAPACITY = 0  # W-peak; 0 = unknown (normalise on the day's sunniest hour)
 DEFAULT_BALANCE = 50  # slider midpoint: price and PV matter equally
+DEFAULT_RESOLUTION = RESOLUTION_HOUR
 DEFAULT_DEBUG_MODE = True  # temporarily ON so non-developers can verify the setup
 
 # ---------------------------------------------------------------------------
 # Behaviour constants
 # ---------------------------------------------------------------------------
 
-# The scoring window: the current hour plus the next 23 hours.
+# The scoring window: the current block plus the rest of the next 24 hours.
 WINDOW_HOURS = 24
 
 # Below this number of available price hours, the data is considered too thin
 # to produce meaningful scores: entities become unavailable and a warning is
 # logged (this typically only happens when a price source is broken).
 MIN_HOURS_REQUIRED = 6
+
+# The appliance-block durations (in hours) for which SEMS creates
+# "best block" binary sensors: e.g. a dishwasher that needs 2 hours.
+BLOCK_DURATIONS_HOURS = (2, 3, 4)

@@ -21,8 +21,9 @@ This is the "engine room" of the integration. The coordinator:
 4. Feeds everything into the pure ``compute_scores`` function and stores
    the result so the sensor/binary_sensor/number entities can show it.
 
-Recomputation happens at the top of every hour and whenever one of the
-source entities changes state.
+Recomputation happens at the start of every planning block (hour or
+quarter-hour, depending on the resolution setting) and whenever one of
+the source entities changes state.
 """
 
 from __future__ import annotations
@@ -42,8 +43,9 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from homeassistant.loader import async_get_integration
 from homeassistant.util import dt as dt_util
 
-from .calculator import compute_scores, to_all_in_price, to_raw_price
+from .calculator import compute_scores, find_best_block, to_all_in_price, to_raw_price
 from .const import (
+    BLOCK_DURATIONS_HOURS,
     CONF_ENERGY_TAX,
     CONF_EXPORT_FEE,
     CONF_PRICE_ENTITY,
@@ -51,6 +53,7 @@ from .const import (
     CONF_PRICE_TYPE,
     CONF_PV_CAPACITY,
     CONF_PV_FORECAST_ENTITY,
+    CONF_RESOLUTION,
     CONF_SUPPLIER_MARKUP,
     CONF_VAT_PERCENT,
     DEFAULT_BALANCE,
@@ -59,11 +62,13 @@ from .const import (
     DEFAULT_PRICE_FREE_THRESHOLD,
     DEFAULT_PRICE_TYPE,
     DEFAULT_PV_CAPACITY,
+    DEFAULT_RESOLUTION,
     DEFAULT_SUPPLIER_MARKUP,
     DEFAULT_VAT_PERCENT,
     DOMAIN,
     MIN_HOURS_REQUIRED,
     PRICE_TYPE_RAW,
+    RESOLUTION_QUARTER,
     WINDOW_HOURS,
 )
 
@@ -75,17 +80,37 @@ def _hour_start(moment: datetime) -> datetime:
     return dt_util.as_local(moment).replace(minute=0, second=0, microsecond=0)
 
 
-def _to_hourly(pairs: list[tuple[datetime, float]]) -> dict[datetime, float]:
-    """Average a list of (timestamp, value) pairs into one value per hour.
+def _block_start(moment: datetime, minutes: int) -> datetime:
+    """Return the start of the (local) time block that ``moment`` falls in.
 
-    Price sources may deliver 15-minute values (the European market
-    switched to 15-minute intervals); SEMS works with hourly averages.
-    Sources that already deliver hourly values pass through unchanged.
+    With ``minutes=60`` this is the top of the hour; with ``minutes=15``
+    it is :00, :15, :30 or :45.
+    """
+    local = dt_util.as_local(moment)
+    return local.replace(
+        minute=(local.minute // minutes) * minutes, second=0, microsecond=0
+    )
+
+
+def _to_blocks(
+    pairs: list[tuple[datetime, float]], minutes: int
+) -> dict[datetime, float]:
+    """Average (timestamp, value) pairs into one value per time block.
+
+    Sources may deliver 15-minute values (the European market switched to
+    15-minute intervals) or hourly values; this buckets them into whatever
+    block size SEMS is configured to plan in, averaging where a block
+    receives multiple values.
     """
     buckets: dict[datetime, list[float]] = {}
     for moment, value in pairs:
-        buckets.setdefault(_hour_start(moment), []).append(value)
-    return {hour: sum(values) / len(values) for hour, values in buckets.items()}
+        buckets.setdefault(_block_start(moment, minutes), []).append(value)
+    return {block: sum(values) / len(values) for block, values in buckets.items()}
+
+
+def _to_hourly(pairs: list[tuple[datetime, float]]) -> dict[datetime, float]:
+    """Average a list of (timestamp, value) pairs into one value per hour."""
+    return _to_blocks(pairs, 60)
 
 
 def _parse_datetime(value: Any) -> datetime | None:
@@ -292,9 +317,12 @@ class SemsCoordinator(DataUpdateCoordinator[dict]):
     """Reads the source entities and recomputes all SEMS scores."""
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
-        # No fixed update_interval: updates are driven by the top-of-hour
-        # clock and by source entity changes (see async_setup).
-        super().__init__(hass, _LOGGER, name=DOMAIN, update_interval=None)
+        # No fixed update_interval: updates are driven by the block clock
+        # and by source entity changes (see async_setup). Recent Home
+        # Assistant versions require passing the config entry explicitly.
+        super().__init__(
+            hass, _LOGGER, config_entry=entry, name=DOMAIN, update_interval=None
+        )
         self.entry = entry
         # The balance slider value lives here; the number entity restores it
         # after a restart and updates it when the user moves the slider.
@@ -319,14 +347,23 @@ class SemsCoordinator(DataUpdateCoordinator[dict]):
     def free_threshold(self) -> float:
         return float(self._conf(CONF_PRICE_FREE_THRESHOLD, DEFAULT_PRICE_FREE_THRESHOLD))
 
+    @property
+    def block_minutes(self) -> int:
+        """The planning block size in minutes: 60 (default) or 15."""
+        resolution = self._conf(CONF_RESOLUTION, DEFAULT_RESOLUTION)
+        return 15 if resolution == RESOLUTION_QUARTER else 60
+
     # -- lifecycle -------------------------------------------------------
 
     async def async_setup(self) -> None:
-        """Start the hourly clock and watch the source entities."""
-        # Recompute just after the top of every hour (a few seconds late so
-        # the price sensors have rolled over to the new hour first).
+        """Start the block clock and watch the source entities."""
+        # Recompute just after the start of every block (a few seconds late
+        # so the price sensors have rolled over to the new block first).
+        minutes = [0] if self.block_minutes == 60 else [0, 15, 30, 45]
         self._unsubs.append(
-            async_track_time_change(self.hass, self._handle_hour_tick, minute=0, second=15)
+            async_track_time_change(
+                self.hass, self._handle_hour_tick, minute=minutes, second=15
+            )
         )
         watched = [self.price_entity_id]
         if self.pv_entity_id:
@@ -372,28 +409,40 @@ class SemsCoordinator(DataUpdateCoordinator[dict]):
             )
             raise UpdateFailed("No hourly prices found on the price entity")
 
+        # ---- 2. Build the rolling window: current block + next blocks ----
+        # A "block" is one hour (default) or one quarter-hour, depending on
+        # the resolution setting. Sources with a coarser resolution than
+        # the configured one (hourly prices + quarter-hour planning) simply
+        # repeat their value for every block inside the hour.
+        block_minutes = self.block_minutes
+        blocks_per_hour = 60 // block_minutes
+        window_blocks = WINDOW_HOURS * blocks_per_hour
+        block_prices = _to_blocks(pairs, block_minutes)
         hourly_prices = _to_hourly(pairs)
 
-        # ---- 2. Build the rolling window: current hour + next hours ----
-        # Only contiguous hours are used; the window stops at the first gap.
-        now_hour = _hour_start(dt_util.now())
+        # Only contiguous blocks are used; the window stops at the first gap.
+        now_block = _block_start(dt_util.now(), block_minutes)
         starts: list[datetime] = []
         source_prices: list[float] = []
-        for i in range(WINDOW_HOURS):
-            hour = now_hour + timedelta(hours=i)
-            if hour not in hourly_prices:
+        for i in range(window_blocks):
+            block = now_block + timedelta(minutes=block_minutes * i)
+            value = block_prices.get(block)
+            if value is None:  # hourly source in quarter mode: use the hour's price
+                value = hourly_prices.get(_hour_start(block))
+            if value is None:
                 break
-            starts.append(hour)
-            source_prices.append(hourly_prices[hour])
+            starts.append(block)
+            source_prices.append(value)
 
-        hours_available = len(starts)
-        if hours_available < MIN_HOURS_REQUIRED:
+        blocks_available = len(starts)
+        hours_available = blocks_available / blocks_per_hour
+        if blocks_available < MIN_HOURS_REQUIRED * blocks_per_hour:
             _LOGGER.warning(
-                "SEMS has only %d hour(s) of price data (minimum is %d); "
+                "SEMS has only %.2f hour(s) of price data (minimum is %d); "
                 "marking entities unavailable", hours_available, MIN_HOURS_REQUIRED,
             )
             raise UpdateFailed(
-                f"Only {hours_available} hours of price data available "
+                f"Only {hours_available:.2f} hours of price data available "
                 f"(minimum {MIN_HOURS_REQUIRED})"
             )
 
@@ -419,14 +468,16 @@ class SemsCoordinator(DataUpdateCoordinator[dict]):
         # Exporting earns the bare market price minus the feed-in fee.
         export_prices = [p - export_fee for p in raw_prices]
 
-        # ---- 4. Get the PV forecast, aligned to the same hours ----
+        # ---- 4. Get the PV forecast, aligned to the same blocks ----
         # Two routes, tried in order:
         #   a. hourly attributes on the entity itself (watts dict,
         #      Solcast-style forecast lists),
         #   b. the integration's official solar forecast — the same data
         #      the Energy dashboard shows. This is how core Forecast.Solar
         #      works: its entities carry no hourly attributes at all.
-        pv_watts = [0.0] * hours_available
+        # Forecasts are hourly; in quarter-hour mode every block inside an
+        # hour gets that hour's forecast.
+        pv_watts = [0.0] * blocks_available
         pv_source = "no PV entity configured"
         if self.pv_entity_id:
             hourly_pv: dict[datetime, float] = {}
@@ -449,7 +500,7 @@ class SemsCoordinator(DataUpdateCoordinator[dict]):
                         "SEMS could not read an hourly PV forecast from %s "
                         "(%s); treating PV as 0 W", self.pv_entity_id, pv_source,
                     )
-            pv_watts = [hourly_pv.get(hour, 0.0) for hour in starts]
+            pv_watts = [hourly_pv.get(_hour_start(block), 0.0) for block in starts]
 
         # ---- 5. Compute the scores (pure function, unit-tested) ----
         pv_capacity = float(self._conf(CONF_PV_CAPACITY, DEFAULT_PV_CAPACITY))
@@ -466,20 +517,63 @@ class SemsCoordinator(DataUpdateCoordinator[dict]):
 
         current = scores[0]
 
-        # ---- 6. Package everything for the entities ----
+        # Blocks whose prices are not published yet (typically tomorrow,
+        # before ~13:00 CET) get explicit empty entries: score None means
+        # "unknown", so charts show a gap instead of pretending to know.
+        for i in range(blocks_available, window_blocks):
+            block = now_block + timedelta(minutes=block_minutes * i)
+            scores.append(
+                {
+                    "start": block.isoformat(),
+                    "price": None,
+                    "export_price": None,
+                    "effective_price": None,
+                    "pv": None,
+                    "score": None,
+                    "relative_score": None,
+                    "rank": None,
+                }
+            )
+
+        # ---- 6. Best consecutive blocks for slow appliances ----
+        # For each duration (e.g. 2h dishwasher): the start moment of the
+        # best-scoring consecutive run within the known data.
+        score_values = [s["score"] for s in scores[:blocks_available]]
+        best_blocks: dict[str, dict | None] = {}
+        for duration_hours in BLOCK_DURATIONS_HOURS:
+            length = duration_hours * blocks_per_hour
+            index = find_best_block(score_values, length)
+            if index is None:
+                best_blocks[f"{duration_hours}h"] = None
+                continue
+            average = sum(score_values[index : index + length]) / length
+            best_blocks[f"{duration_hours}h"] = {
+                "start": starts[index].isoformat(),
+                "end": (starts[index] + timedelta(hours=duration_hours)).isoformat(),
+                "average_score": round(average, 1),
+                # True while the best run starts in the current block: the
+                # moment to switch the appliance on.
+                "starts_now": index == 0,
+            }
+
+        # ---- 7. Package everything for the entities ----
         return {
             "scores": scores,
             "current": current,
-            "hours_available": hours_available,
+            "hours_available": round(hours_available, 2),
+            "blocks_available": blocks_available,
+            "block_minutes": block_minutes,
+            "best_blocks": best_blocks,
             # The free-power flag is deliberately derived from the all-in
             # price itself, NOT from the score.
             "free_power": current["price"] < self.free_threshold,
             "balance": self.balance,
-            # Verification / diagnostics info (shown by the debug sensor).
+            # Verification / diagnostics info (shown by the debug sensors).
             "price_source": price_source,
             "pv_source": pv_source,
             "price_type": price_type,
             "pv_capacity": pv_capacity,
+            "source_prices": [round(p, 5) for p in source_prices],
             "raw_prices": [round(p, 5) for p in raw_prices],
             "all_in_prices": [round(p, 5) for p in all_in_prices],
             "export_prices": [round(p, 5) for p in export_prices],

@@ -2,7 +2,7 @@
 
 These tests run on plain Python + pytest — no Home Assistant required.
 They load calculator.py directly from its file path instead of importing
-the ``custom_components.sems`` package, because the package __init__.py
+the ``custom_components.simple_ems`` package, because the package __init__.py
 will later import Home Assistant (which is not installed on a normal
 development machine).
 """
@@ -16,7 +16,7 @@ import pytest
 _CALC_PATH = (
     Path(__file__).resolve().parents[1]
     / "custom_components"
-    / "sems"
+    / "simple_ems"
     / "calculator.py"
 )
 _spec = importlib.util.spec_from_file_location("sems_calculator", _CALC_PATH)
@@ -403,3 +403,38 @@ def test_single_hour_window():
     assert len(result) == 1
     assert result[0]["rank"] == 1
     assert result[0]["relative_score"] == pytest.approx(50.0)
+
+
+# ---------------------------------------------------------------------------
+# find_best_block
+# ---------------------------------------------------------------------------
+
+find_best_block = calculator.find_best_block
+
+
+def test_find_best_block_picks_highest_average_run():
+    """The 2-block run 80+90 beats every other consecutive pair."""
+    scores = [10.0, 40.0, 80.0, 90.0, 30.0, 20.0]
+    assert find_best_block(scores, 2) == 2
+
+
+def test_find_best_block_single_block_is_maximum():
+    scores = [10.0, 40.0, 80.0, 90.0, 30.0]
+    assert find_best_block(scores, 1) == 3
+
+
+def test_find_best_block_whole_window():
+    """A run as long as the window can only start at 0."""
+    assert find_best_block([1.0, 2.0, 3.0], 3) == 0
+
+
+def test_find_best_block_tie_prefers_earliest_start():
+    scores = [50.0, 50.0, 50.0, 50.0]
+    assert find_best_block(scores, 2) == 0
+
+
+def test_find_best_block_too_long_returns_none():
+    """An appliance that does not fit in the known data gets no block."""
+    assert find_best_block([10.0, 20.0], 3) is None
+    assert find_best_block([], 1) is None
+    assert find_best_block([10.0], 0) is None

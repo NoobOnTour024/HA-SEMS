@@ -17,6 +17,14 @@ Five sensors are created (the last one only when debug mode is on):
 * ``sensor.sems_diagnostics``    — TEMPORARY verification aid (debug mode):
                                    a plain-language health message with all
                                    intermediate numbers as attributes.
+
+In debug mode three extra series sensors are created so every input and
+result can be charted and inspected separately:
+
+* ``sensor.sems_source_price``    — the price exactly as read from the
+                                    source entity, per block.
+* ``sensor.sems_effective_price`` — what a kWh really costs per block.
+* ``sensor.sems_pv_forecast``     — the solar forecast per block.
 """
 
 from __future__ import annotations
@@ -46,13 +54,21 @@ async def async_setup_entry(
         SemsRankSensor(coordinator, entry),
         SemsCurrentPriceSensor(coordinator, entry),
     ]
-    # The diagnostics sensor is a temporary verification aid; it only
-    # exists while debug mode is enabled in the options.
+    # The diagnostics and series sensors are temporary verification aids;
+    # they only exist while debug mode is enabled in the options.
     debug = entry.options.get(CONF_DEBUG_MODE, entry.data.get(CONF_DEBUG_MODE, DEFAULT_DEBUG_MODE))
     if debug:
         entities.append(SemsDiagnosticsSensor(coordinator, entry))
+        entities.append(SemsSourcePriceSensor(coordinator, entry))
+        entities.append(SemsEffectivePriceSensor(coordinator, entry))
+        entities.append(SemsPvForecastSensor(coordinator, entry))
 
     async_add_entities(entities)
+
+
+def _round(value: float | None, digits: int) -> float | None:
+    """Round a value, passing None (= data not published yet) through."""
+    return None if value is None else round(value, digits)
 
 
 class SemsSensorBase(CoordinatorEntity[SemsCoordinator], SensorEntity):
@@ -124,22 +140,29 @@ class SemsRelativeScoreSensor(SemsSensorBase):
     @property
     def extra_state_attributes(self) -> dict:
         """Expose the full window so users can build automations and
-        ApexCharts graphs on it."""
+        ApexCharts graphs on it.
+
+        The list always spans the whole 24h window: blocks whose prices are
+        not published yet appear with ``null`` values ("unknown"), so charts
+        show a gap there instead of missing data.
+        """
         data = self.coordinator.data
         return {
             "scores_24h": [
                 {
                     "start": entry["start"],
-                    "price": round(entry["price"], 5),
-                    "effective_price": round(entry["effective_price"], 5),
-                    "pv": round(entry["pv"], 1),
-                    "score": round(entry["score"], 1),
-                    "relative_score": round(entry["relative_score"], 1),
+                    "price": _round(entry["price"], 5),
+                    "effective_price": _round(entry["effective_price"], 5),
+                    "pv": _round(entry["pv"], 1),
+                    "score": _round(entry["score"], 1),
+                    "relative_score": _round(entry["relative_score"], 1),
                     "rank": entry["rank"],
                 }
                 for entry in data["scores"]
             ],
+            "best_blocks": data["best_blocks"],
             "hours_available": data["hours_available"],
+            "block_minutes": data["block_minutes"],
         }
 
 
@@ -245,7 +268,103 @@ class SemsDiagnosticsSensor(SemsSensorBase):
             "price_type": data["price_type"],
             "pv_capacity": data["pv_capacity"],
             "hours_available": data["hours_available"],
+            "block_minutes": data["block_minutes"],
             "balance": data["balance"],
             "hourly_overview": hourly_overview,
             "last_computed": data["last_computed"],
         }
+
+
+class SemsSeriesSensorBase(SemsSensorBase):
+    """Base for the debug series sensors (debug mode only).
+
+    Each of these sensors shows one data series as it flows through SEMS:
+    the state is the value for the CURRENT block, and the ``series``
+    attribute holds the value per block for the whole window — ideal for
+    charting a single ingredient of the score with ApexCharts.
+    """
+
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def _series(self, field: str, digits: int) -> list[dict]:
+        return [
+            {"start": entry["start"], "value": _round(entry[field], digits)}
+            for entry in self.coordinator.data["scores"]
+        ]
+
+
+class SemsSourcePriceSensor(SemsSeriesSensorBase):
+    """DEBUG: the price exactly as read from the source entity (per block).
+
+    Compare this against the source integration to verify SEMS reads the
+    right numbers before any conversion happens.
+    """
+
+    _attr_name = "Source price"
+    _attr_icon = "mdi:import"
+    _attr_native_unit_of_measurement = "EUR/kWh"
+    _attr_suggested_display_precision = 3
+
+    def __init__(self, coordinator: SemsCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator, entry, "source_price")
+
+    @property
+    def native_value(self) -> float | None:
+        return self.coordinator.data["source_prices"][0]
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        data = self.coordinator.data
+        return {
+            "price_source": data["price_source"],
+            "price_type": data["price_type"],
+            "series": [
+                {"start": entry["start"], "value": value}
+                for entry, value in zip(data["scores"], data["source_prices"])
+            ],
+        }
+
+
+class SemsEffectivePriceSensor(SemsSeriesSensorBase):
+    """DEBUG: what one kWh really costs you, per block (€/kWh).
+
+    The heart of the score: grid price and export price blended by how much
+    of your consumption your own solar power covers.
+    """
+
+    _attr_name = "Effective price"
+    _attr_icon = "mdi:cash-multiple"
+    _attr_native_unit_of_measurement = "EUR/kWh"
+    _attr_suggested_display_precision = 3
+
+    def __init__(self, coordinator: SemsCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator, entry, "effective_price")
+
+    @property
+    def native_value(self) -> float | None:
+        return _round(self.coordinator.data["current"]["effective_price"], 5)
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        return {"series": self._series("effective_price", 5)}
+
+
+class SemsPvForecastSensor(SemsSeriesSensorBase):
+    """DEBUG: the solar forecast SEMS is working with, per block (W)."""
+
+    _attr_name = "PV forecast"
+    _attr_icon = "mdi:solar-power"
+    _attr_native_unit_of_measurement = "W"
+    _attr_suggested_display_precision = 0
+
+    def __init__(self, coordinator: SemsCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator, entry, "pv_forecast")
+
+    @property
+    def native_value(self) -> float | None:
+        return _round(self.coordinator.data["current"]["pv"], 1)
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        data = self.coordinator.data
+        return {"pv_source": data["pv_source"], "series": self._series("pv", 1)}

@@ -47,6 +47,7 @@ from .const import (
     CONF_PRICE_TYPE,
     CONF_PV_CAPACITY,
     CONF_PV_FORECAST_ENTITY,
+    CONF_RESOLUTION,
     CONF_SUPPLIER_MARKUP,
     CONF_VAT_PERCENT,
     DEFAULT_DEBUG_MODE,
@@ -55,11 +56,14 @@ from .const import (
     DEFAULT_PRICE_FREE_THRESHOLD,
     DEFAULT_PRICE_TYPE,
     DEFAULT_PV_CAPACITY,
+    DEFAULT_RESOLUTION,
     DEFAULT_SUPPLIER_MARKUP,
     DEFAULT_VAT_PERCENT,
     DOMAIN,
     PRICE_TYPE_ALL_IN,
     PRICE_TYPE_RAW,
+    RESOLUTION_HOUR,
+    RESOLUTION_QUARTER,
 )
 
 def _settings_schema(current: dict[str, Any]) -> vol.Schema:
@@ -78,6 +82,16 @@ def _settings_schema(current: dict[str, Any]) -> vol.Schema:
                     options=[PRICE_TYPE_ALL_IN, PRICE_TYPE_RAW],
                     mode=SelectSelectorMode.LIST,
                     translation_key="price_type",
+                )
+            ),
+            vol.Required(
+                CONF_RESOLUTION,
+                default=current.get(CONF_RESOLUTION, DEFAULT_RESOLUTION),
+            ): SelectSelector(
+                SelectSelectorConfig(
+                    options=[RESOLUTION_HOUR, RESOLUTION_QUARTER],
+                    mode=SelectSelectorMode.DROPDOWN,
+                    translation_key="resolution",
                 )
             ),
             vol.Required(

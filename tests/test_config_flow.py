@@ -14,7 +14,7 @@ from homeassistant.data_entry_flow import FlowResultType
 
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.sems.const import (
+from custom_components.simple_ems.const import (
     CONF_DEBUG_MODE,
     CONF_ENERGY_TAX,
     CONF_PRICE_ENTITY,
@@ -60,7 +60,7 @@ async def test_full_flow_with_defaults(hass: HomeAssistant) -> None:
     assert result["step_id"] == "taxes"
 
     # Screen 3: taxes, again all defaults.
-    with patch("custom_components.sems.async_setup_entry", return_value=True):
+    with patch("custom_components.simple_ems.async_setup_entry", return_value=True):
         result = await hass.config_entries.flow.async_configure(result["flow_id"], {})
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
@@ -89,7 +89,7 @@ async def test_raw_price_flow(hass: HomeAssistant) -> None:
     assert result["type"] is FlowResultType.FORM
     assert result["step_id"] == "taxes"
 
-    with patch("custom_components.sems.async_setup_entry", return_value=True):
+    with patch("custom_components.simple_ems.async_setup_entry", return_value=True):
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"], {CONF_VAT_PERCENT: 9}
         )
@@ -111,7 +111,7 @@ async def test_flow_without_pv_entity(hass: HomeAssistant) -> None:
     result = await hass.config_entries.flow.async_configure(result["flow_id"], {})
     assert result["step_id"] == "taxes"
 
-    with patch("custom_components.sems.async_setup_entry", return_value=True):
+    with patch("custom_components.simple_ems.async_setup_entry", return_value=True):
         result = await hass.config_entries.flow.async_configure(result["flow_id"], {})
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
@@ -132,7 +132,7 @@ async def test_options_flow_prefills_saved_taxes(hass: HomeAssistant) -> None:
     )
     entry.add_to_hass(hass)
 
-    with patch("custom_components.sems.async_setup_entry", return_value=True):
+    with patch("custom_components.simple_ems.async_setup_entry", return_value=True):
         result = await hass.config_entries.options.async_init(entry.entry_id)
         assert result["type"] is FlowResultType.FORM
         assert result["step_id"] == "init"
@@ -165,7 +165,7 @@ async def test_options_flow_can_change_taxes(hass: HomeAssistant) -> None:
     )
     entry.add_to_hass(hass)
 
-    with patch("custom_components.sems.async_setup_entry", return_value=True):
+    with patch("custom_components.simple_ems.async_setup_entry", return_value=True):
         result = await hass.config_entries.options.async_init(entry.entry_id)
         result = await hass.config_entries.options.async_configure(
             result["flow_id"], {CONF_PRICE_TYPE: PRICE_TYPE_RAW}

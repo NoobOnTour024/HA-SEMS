@@ -1,5 +1,5 @@
 {
-  "domain": "sems",
+  "domain": "simple_ems",
   "name": "SEMS - Simple Energy Management System",
   "codeowners": ["@NoobOnTour024"],
   "config_flow": true,
@@ -9,5 +9,5 @@
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/NoobOnTour024/HA-SEMS/issues",
   "requirements": [],
-  "version": "0.1.7"
+  "version": "0.2.0"
 }

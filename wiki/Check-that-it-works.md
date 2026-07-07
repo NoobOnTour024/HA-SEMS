@@ -67,25 +67,31 @@ HACS, then add this card to a dashboard:
 type: custom:apexcharts-card
 header:
   show: true
-  title: SEMS — score for the next 24h
+  title: SEMS — score for today
 graph_span: 24h
 span:
-  start: hour
+  start: day
+now:
+  show: true
+  label: now
 series:
   - entity: sensor.sems_relative_score
     name: Score
+    unit: " pts"
     type: column
     data_generator: |
       return entity.attributes.scores_24h.map((row) => {
         return [new Date(row.start).getTime(), row.score];
       });
   - entity: sensor.sems_relative_score
-    name: Price (ct/kWh)
+    name: Price
+    unit: " ct/kWh"
     type: line
     color: gray
     data_generator: |
       return entity.attributes.scores_24h.map((row) => {
-        return [new Date(row.start).getTime(), row.price * 100];
+        return [new Date(row.start).getTime(),
+                row.price === null ? null : row.price * 100];
       });
 ```
 

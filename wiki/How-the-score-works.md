@@ -1,135 +1,133 @@
 # How the score works
 
-No formulas needed to understand SEMS — the whole idea fits in one
-question:
+No formulas needed. Seven small steps, each a minute to read. If you
+prefer playing over reading: the repository contains
+[SEMS-simulator.xlsx-style examples](Dashboard-charts.md) and every number
+below is visible per hour in the debug sensors.
 
-> **"What does one kWh really cost me this hour?"**
+## Step 1 — What does electricity really cost you?
 
-## The key insight: your own solar power is cheap, but not free
+Your energy app says: **€0.28 per kWh**. But that 28 cents is mostly
+taxes. The build-up looks roughly like this:
 
-Say your all-in electricity price is **€0.28 per kWh**. That 28 cents is
-mostly taxes; the bare market price inside it is only about **€0.12**.
+| Part | Amount |
+|---|---|
+| Market price (what power costs "on the exchange") | €0.12 |
+| Energy tax | €0.09 |
+| Supplier markup | €0.02 |
+| VAT over all of it | €0.05 |
+| **What you pay ("all-in")** | **€0.28** |
 
-Now the sun comes out and your panels cover everything you use.
+Remember those two numbers: **you pay €0.28**, but **the market price
+inside is only €0.12**.
 
-- Using one kWh of your own solar power doesn't cost you 28 cents — you're
-  not buying anything.
-- But it isn't free either: you *could* have exported that kWh. Exporting
-  earns the bare market price minus a feed-in fee: €0.12 − €0.02 =
-  **€0.10**. By using it yourself, you give up those 10 cents.
+## Step 2 — What does exporting solar power earn you?
 
-So on this day, one kWh really costs you:
+When your panels produce more than you use, the surplus goes to the grid.
+You do **not** get €0.28 for it. You get the **market price minus a
+feed-in fee**:
 
-| Hour | What happens | Real cost per kWh |
+> €0.12 − €0.02 = **€0.06 per kWh**
+
+Taxes never come back. Selling earns €0.06; buying costs €0.28. That gap
+is the whole secret of SEMS.
+
+## Step 3 — Your own solar power is cheap, but not free
+
+The sun is shining and your panels cover everything you use. Running the
+dishwasher now — what does that cost?
+
+- Not €0.28: you're not buying anything.
+- Not €0.00 either: every kWh you use yourself, you could have *sold* for
+  €0.06.
+
+So using your own solar power costs you the **missed sales money: €0.06
+per kWh**. SEMS calls this the **effective price** — what a kWh *really*
+costs you that hour:
+
+| Hour | Situation | Effective price |
 |---|---|---|
-| Dark hour (night) | You buy from the grid | **€0.28** |
-| Sunny hour (noon) | You use your own power, miss the export payment | **€0.10** |
-| Half-sunny hour | Half of each | **€0.19** |
+| 03:00 (dark) | everything from the grid | €0.28 |
+| 13:00 (full sun) | everything from your roof | €0.06 |
+| 09:00 (some sun) | half and half | €0.17 |
 
-SEMS calls this the **effective price**, and calculates it for every hour
-of the coming 24. It's why running the dishwasher at noon is smart *even on
-a flat tariff* — the price on your contract never changes, but the
-effective price does, because of your panels.
+This is why running appliances at noon is smart **even on a flat tariff**:
+your contract price never changes, but the effective price does.
 
-## From effective price to score
+## Step 4 — How much of your usage does the sun cover?
 
-For each hour in the window (the current hour + up to 23 hours ahead):
+For the blend in step 3, SEMS estimates per hour how much of your
+consumption your panels cover. It uses your solar forecast and one
+setting:
 
-1. **Price points** — the hour with the lowest effective price in the
-   window gets the maximum, the highest gets zero, everything else is in
-   between.
-2. **Sun points** — the sunniest hour of the window gets the maximum, a
-   dark hour gets zero.
-3. **The balance slider mixes them.** At balance 100 only the price points
-   count, at 0 only the sun points, at 50 each counts half. The result is
-   the **score: 0 to 100**.
+- **Solar installation size filled in** (e.g. 12 panels × 405 Wp = 4860):
+  coverage = forecast ÷ installation size. A 600 W winter hour on a
+  4860 Wp system covers ~12% — so that hour stays close to the grid
+  price. Realistic.
+- **Left at 0**: SEMS assumes the sunniest hour of the day covers your
+  usage. Fine on sunny days, too optimistic on gloomy ones.
 
-### Why have a slider at all, if the effective price already knows about sun?
+SEMS doesn't know what you will actually switch on — a 3000 W oven
+changes everything. That inaccuracy is the price of keeping SEMS simple;
+the numbers are a guide, not an invoice.
 
-Because they answer different questions:
+## Step 5 — From effective price to a score
 
-- **Balance 100** answers: *"when is consuming cheapest?"* — that's usually
-  sunny hours, but during an extreme price spike it can actually be smarter
-  to export your solar power (it earns a lot) and consume at night instead.
-  The effective price captures that automatically.
-- **Balance 0** answers: *"when do my panels produce?"* — pure
-  self-consumption, prices ignored. Some people simply want this.
-- In between blends the two.
+Every block (hour, or quarter-hour if you chose that) gets points:
 
-## Free power (score above 100)
+1. **Price points** — the block with the *lowest effective price* of the
+   coming 24 hours gets the most; the most expensive gets zero.
+2. **Sun points** — the *sunniest* block gets the most; a dark block gets
+   zero.
+3. **The balance slider mixes them.** At 100 only price points count, at
+   0 only sun points, at 50 each counts half.
 
-When the **all-in** price of an hour drops below the free-power threshold
-(default: below €0.00), the score jumps **above 100** — the further below
-zero, the higher. At −€0.05 the score is 105, at −€0.10 it's 110. These are
-hours where you get *paid* to consume, so they beat every normal hour by
-definition. `binary_sensor.sems_free_power` is ON during those hours.
+The result is the **score: 0 to 100**. One special case: is the all-in
+price *negative* (below the free-power threshold)? Then you get **paid**
+to use power. Such a block beats everything, so its score goes **above
+100** — and `binary_sensor.sems_free_power` switches ON.
 
-Note: this looks at the price you *pay*, taxes included. A negative market
-price alone isn't enough — after adding taxes the all-in price is often
-still positive. That situation still shows up as a very low (even negative)
-*effective* price and thus a high score, but it isn't "free".
+## Step 6 — Rank and relative score: the numbers you actually use
 
-## Rank and relative score — the two numbers you actually use
+The raw score is the engine, but two friendlier views come out of it:
 
-The score above is the engine, but for daily use SEMS gives you two
-easier views on it:
+- **Rank** (`sensor.sems_rank`): all blocks of the coming 24 hours lined
+  up from worst (1) to best (24 — or 96 in quarter mode). "Rank above 19"
+  simply means: one of the 5 best hours of the day.
+- **Relative score** (`sensor.sems_relative_score`): the same as a
+  percentage. 0% = the worst block of the day, 100% = the best.
 
-- **Rank** (`sensor.sems_rank`) — all hours in the window are sorted by
-  score and numbered 1 (worst) to 24 (best). "Rank ≥ 20" always means "one
-  of the 5 best hours of the coming day", no matter what the actual prices
-  are. When two hours tie, the earlier hour gets the lower rank.
-- **Relative score** (`sensor.sems_relative_score`) — the current hour as a
-  percentage between the worst (0%) and best (100%) hour of the window.
+> ⚠️ **Relative score 100 does not mean "free".** Every day has exactly
+> one best hour, so the relative score touches 100 every single day —
+> also on an expensive day. It only ever compares hours *within* the
+> coming 24 hours. Free power has its own signals: the free-power sensor
+> turns ON, and the raw score (visible in charts) goes above 100.
 
-> ⚠️ **Don't mix up "relative score 100" with "free power".** The relative
-> score compares hours *within the day*: every day has one best hour, so
-> it hits 100% daily — even when that best hour costs 25 cents. "Free"
-> is an absolute fact about the price, and it has its own signals: the
-> raw score goes above 100 and `binary_sensor.sems_free_power` turns ON.
+## Step 7 — Appliances that need more than one hour
 
-And the raw score itself? It is mainly internal. Honestly, it is *also*
-relative to the day (the cheapest effective hour of the window sets its
-top), which is exactly why it is easy to confuse with the relative score —
-so the raw score sensor is disabled by default. It still lives in the
-`scores_24h` attribute for charts, where its one absolute feature shows
-nicely: free-power hours poke above the 100 line.
+A dishwasher needs 2–3 hours, and the 3 best hours of the day are not
+always next to each other. For that, SEMS also finds the best
+*consecutive* run of 2, 3 and 4 hours:
+
+- `binary_sensor.sems_best_2h_block` (and `3h`, `4h`) turns **ON** when
+  the best run starts *now* — switch the appliance on at that moment.
+- Its attributes always show when the best run is *planned*
+  (`planned_start`, `planned_end`, `average_score`), so you can also
+  automate on the clock.
+
+Because SEMS re-plans every block (new prices can arrive), the planned
+start can shift during the day — the attributes always show the current
+plan.
 
 ## When data is missing
 
-- Tomorrow's prices are usually published around 13:00 CET. Before that,
-  the window is shorter than 24 hours; SEMS simply scores the hours it
-  knows. The `hours_available` attribute tells you how many that is.
-  Remember this for rank automations: with 18 known hours the best rank is
-  18, not 24.
-- With fewer than 6 hours of price data (normally only when a source is
-  broken), SEMS marks its entities unavailable and writes a warning to the
-  log, rather than pretending to know something it doesn't.
+- Tomorrow's prices are usually published around 13:00 CET. Blocks whose
+  prices are not known yet appear in `scores_24h` with empty (`null`)
+  values — charts show a gap, automations see no rank for those blocks,
+  and nothing is guessed.
+- Fewer than 6 hours of price data (normally only when a source is
+  broken)? SEMS marks its entities unavailable and writes a warning to
+  the log, rather than pretending to know something it doesn't.
 - No PV forecast (or no panels)? Sun points are zero everywhere and the
   effective price equals the all-in price — SEMS becomes a pure price
   optimizer.
-
-## How much of my consumption does the sun cover?
-
-That's the one thing SEMS has to estimate, because it doesn't know your
-actual consumption. Two modes:
-
-- **Solar installation size configured** (recommended): the coverage per
-  hour is `forecast ÷ installation size`. A 600 W hour on a 5000 Wp system
-  counts as covering ~12% — so on a gloomy winter day the effective price
-  correctly stays close to the grid price, instead of pretending the whole
-  day runs on solar.
-- **Left at 0 (automatic)**: SEMS assumes the sunniest forecast hour of the
-  day covers your consumption fully, and scales the other hours
-  proportionally. Fine on sunny days, too optimistic on gloomy ones.
-
-Either way, the balance slider's "follow the sun" side (balance towards 0)
-keeps working on the *shape* of the solar day: the sunniest hour of a
-gloomy day is still the sunniest hour.
-
-## An honest limitation
-
-Even with the installation size configured, SEMS still doesn't know what
-you will actually *consume* in a given hour — running a 3000 W oven changes
-the real coverage. That would require the kind of complexity (consumption
-prediction) SEMS deliberately avoids. In practice this approximation points
-at the right hours; the numbers are a guide, not an invoice.

@@ -79,6 +79,34 @@ def to_raw_price(
     return all_in_price / (1 + vat_percent / 100) - supplier_markup - energy_tax
 
 
+def find_best_block(scores: list[float], length: int) -> int | None:
+    """Find the best consecutive run of ``length`` blocks.
+
+    Given the per-block scores of the window, return the START INDEX of the
+    consecutive run of ``length`` blocks with the highest AVERAGE score —
+    the best moment to start an appliance that needs that long to finish
+    (e.g. a dishwasher needing 2 hours).
+
+    Ties are broken in favour of the earliest start. Returns ``None`` when
+    there are fewer than ``length`` blocks available (the appliance would
+    not fit inside the known data) or when ``length`` is not positive.
+    """
+    n = len(scores)
+    if length <= 0 or length > n:
+        return None
+
+    # Rolling sum over the window: highest sum == highest average.
+    best_start = 0
+    best_sum = current = sum(scores[:length])
+    for start in range(1, n - length + 1):
+        # Slide the window one block: drop the left value, add the right.
+        current += scores[start + length - 1] - scores[start - 1]
+        if current > best_sum:
+            best_sum = current
+            best_start = start
+    return best_start
+
+
 def compute_scores(
     prices: list[float],
     export_prices: list[float],
