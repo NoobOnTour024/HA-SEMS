@@ -10,8 +10,9 @@ and span **48 hours starting at midnight** — today and tomorrow in full —
 with a dashed *now* line marking the current moment. So in the evening
 you always see the whole of tomorrow the moment its prices are published.
 Prefer a shorter axis? Change `graph_span` to `24h` or `36h` — one line
-per card. Or use the [switching window](#advanced-a-window-that-switches-at-noon)
-recipe below.
+per card. Or let the axis
+[shrink to the known data](#advanced-an-axis-that-shrinks-to-the-known-data)
+automatically with the recipe below.
 
 Two things to know:
 
@@ -252,53 +253,35 @@ series:
       });
 ```
 
-## Advanced: a window that switches at noon
+## Advanced: an axis that shrinks to the known data
 
-A 48-hour axis always shows everything, but part of it is inevitably
-empty. If you prefer a tight 36-hour view that never misses anything:
-show **midnight → tomorrow noon** in the morning, and **noon → tomorrow
-midnight** in the afternoon. Plain YAML cannot switch by itself, but Home
-Assistant's *conditional card* can do it with one small helper. Tested
-like everything on this page.
+A 48-hour axis always shows everything, but the part where prices are not
+published yet is inevitably empty. ApexCharts itself cannot resize its
+time axis to the data — but the small helper card
+[config-template-card](https://github.com/iantrich/config-template-card)
+(HACS → search "config template card") can compute the span live, so the
+axis ends **exactly at the last known price block**: ~24 hours wide in the
+morning, growing to ~45 hours in the evening once tomorrow is published.
+Tested like everything on this page.
 
-Add this helper to your `configuration.yaml` (restart afterwards):
-
-```yaml
-template:
-  - binary_sensor:
-      - name: "SEMS afternoon"
-        unique_id: sems_afternoon
-        state: "{{ now().hour >= 12 }}"
-```
-
-Then wrap any card from this page like so — paste the full card at both
-`card:` spots, give the afternoon copy the extra `offset`:
+Wrap any card from this page like this — paste the full card under
+`card:` and replace only its `graph_span` line with the template:
 
 ```yaml
-type: vertical-stack
-cards:
-  - type: conditional
-    conditions:
-      - condition: state
-        entity: binary_sensor.sems_afternoon
-        state: "off"
-    card:
-      # ... any card from this page, with graph_span: 36h
-  - type: conditional
-    conditions:
-      - condition: state
-        entity: binary_sensor.sems_afternoon
-        state: "on"
-    card:
-      # ... the same card, with graph_span: 36h and:
-      span:
-        start: day
-        offset: +12h
+type: custom:config-template-card
+entities:
+  - sensor.sems_relative_score
+card:
+  type: custom:apexcharts-card
+  graph_span: >-
+    ${ Math.ceil(new Date().getHours() + new Date().getMinutes()/60
+       + states['sensor.sems_relative_score'].attributes.hours_available) + 'h' }
+  # ... the rest of the card, unchanged (span, now, series, ...)
 ```
 
-Before noon you get today + tomorrow morning; after noon the axis jumps
-to noon → tomorrow midnight, exactly covering the freshly published
-prices.
+The template adds "hours since midnight" to SEMS's `hours_available`, so
+the span always runs from midnight to the end of the known window and the
+chart re-fits automatically whenever new prices arrive.
 
 ## Good to know
 
