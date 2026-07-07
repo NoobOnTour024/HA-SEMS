@@ -6,11 +6,12 @@ via HACS → search "apexcharts"). **Every card on this page has been loaded
 and tested in a real Home Assistant** — screenshots included.
 
 All cards read the `scores_24h` attribute of `sensor.sems_relative_score`
-and span **36 hours starting at midnight** — the whole of today plus
-tomorrow morning — with a dashed *now* line marking the current moment.
-That way you can already see tomorrow's scores in the evening, when
-they matter most. Prefer a different span? Change `graph_span` to `24h`
-(today only) or `48h` (both days in full) — one line per card.
+and span **48 hours starting at midnight** — today and tomorrow in full —
+with a dashed *now* line marking the current moment. So in the evening
+you always see the whole of tomorrow the moment its prices are published.
+Prefer a shorter axis? Change `graph_span` to `24h` or `36h` — one line
+per card. Or use the [switching window](#advanced-a-window-that-switches-at-noon)
+recipe below.
 
 Two things to know:
 
@@ -40,7 +41,7 @@ type: custom:apexcharts-card
 header:
   show: true
   title: SEMS — prices and rank
-graph_span: 36h
+graph_span: 48h
 span:
   start: day
 now:
@@ -108,7 +109,7 @@ type: custom:apexcharts-card
 header:
   show: true
   title: SEMS — what you pay vs what it really costs
-graph_span: 36h
+graph_span: 48h
 span:
   start: day
 now:
@@ -156,7 +157,7 @@ type: custom:apexcharts-card
 header:
   show: true
   title: SEMS — score and sun
-graph_span: 36h
+graph_span: 48h
 span:
   start: day
 now:
@@ -217,7 +218,7 @@ type: custom:apexcharts-card
 header:
   show: true
   title: SEMS — best hours for big appliances
-graph_span: 36h
+graph_span: 48h
 span:
   start: day
 now:
@@ -250,6 +251,54 @@ series:
         return [new Date(row.start).getTime(), row.rank];
       });
 ```
+
+## Advanced: a window that switches at noon
+
+A 48-hour axis always shows everything, but part of it is inevitably
+empty. If you prefer a tight 36-hour view that never misses anything:
+show **midnight → tomorrow noon** in the morning, and **noon → tomorrow
+midnight** in the afternoon. Plain YAML cannot switch by itself, but Home
+Assistant's *conditional card* can do it with one small helper. Tested
+like everything on this page.
+
+Add this helper to your `configuration.yaml` (restart afterwards):
+
+```yaml
+template:
+  - binary_sensor:
+      - name: "SEMS afternoon"
+        unique_id: sems_afternoon
+        state: "{{ now().hour >= 12 }}"
+```
+
+Then wrap any card from this page like so — paste the full card at both
+`card:` spots, give the afternoon copy the extra `offset`:
+
+```yaml
+type: vertical-stack
+cards:
+  - type: conditional
+    conditions:
+      - condition: state
+        entity: binary_sensor.sems_afternoon
+        state: "off"
+    card:
+      # ... any card from this page, with graph_span: 36h
+  - type: conditional
+    conditions:
+      - condition: state
+        entity: binary_sensor.sems_afternoon
+        state: "on"
+    card:
+      # ... the same card, with graph_span: 36h and:
+      span:
+        start: day
+        offset: +12h
+```
+
+Before noon you get today + tomorrow morning; after noon the axis jumps
+to noon → tomorrow midnight, exactly covering the freshly published
+prices.
 
 ## Good to know
 

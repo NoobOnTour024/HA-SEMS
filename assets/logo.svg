@@ -3,17 +3,17 @@
        from a small red bar (bad hour) to a tall green one (best hour).
        Original artwork for the SEMS project, MIT. -->
   <rect x="8" y="8" width="240" height="240" rx="48" fill="#1b2a41"/>
-  <!-- sun -->
-  <circle cx="84" cy="84" r="32" fill="#f6b93b"/>
+  <!-- sun (kept well inside the rounded frame, incl. the round line caps) -->
+  <circle cx="94" cy="94" r="30" fill="#f6b93b"/>
   <g stroke="#f6b93b" stroke-width="10" stroke-linecap="round">
-    <line x1="84" y1="28" x2="84" y2="12"/>
-    <line x1="84" y1="156" x2="84" y2="140"/>
-    <line x1="28" y1="84" x2="12" y2="84"/>
-    <line x1="140" y1="84" x2="156" y2="84"/>
-    <line x1="44" y1="44" x2="33" y2="33"/>
-    <line x1="124" y1="124" x2="135" y2="135"/>
-    <line x1="44" y1="124" x2="33" y2="135"/>
-    <line x1="124" y1="44" x2="135" y2="33"/>
+    <line x1="94" y1="50" x2="94" y2="36"/>
+    <line x1="94" y1="138" x2="94" y2="152"/>
+    <line x1="50" y1="94" x2="36" y2="94"/>
+    <line x1="138" y1="94" x2="152" y2="94"/>
+    <line x1="63" y1="63" x2="53" y2="53"/>
+    <line x1="125" y1="125" x2="135" y2="135"/>
+    <line x1="63" y1="125" x2="53" y2="135"/>
+    <line x1="125" y1="63" x2="135" y2="53"/>
   </g>
   <!-- score bars: hours going from bad (small, red) to best (tall, green) -->
   <rect x="100" y="196" width="26" height="26" rx="6" fill="#e24b4a"/>
