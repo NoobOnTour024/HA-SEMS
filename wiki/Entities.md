@@ -53,6 +53,52 @@ the 5 best hours of the coming day".
 Attribute `hours_available`: with fewer than 24 known hours, the best
 possible rank is lower too (e.g. 18 when 18 hours are known).
 
+This sensor uses a **rolling** window (now + the next hours), so in the
+evening it already looks into tomorrow morning. For a clean per-calendar-
+day view, use the two sensors below instead.
+
+## `sensor.sems_rank_today` and `sensor.sems_rank_tomorrow`
+
+Each of these ranks **one whole calendar day on its own**, so the rank is
+always **1 (worst) … 24 (best)** for that day — no matter the time, and no
+matter how much of tomorrow is known. `sems_rank_today` covers all of
+today (including the hours that already passed); `sems_rank_tomorrow` is
+`unavailable` until tomorrow's prices are published (typically after
+~13:00 CET), then covers all of tomorrow.
+
+- **State**: that day's **best hour**, as `HH:MM` (e.g. `13:00`) — a
+  glanceable "run big things around this time".
+- **Attribute `scores`**: one entry per block of the day, each with
+  `start`, `price`, `effective_price`, `pv`, `score`, `relative_score` and
+  `rank` (1–24 within the day). This is what charts and per-day
+  automations read — e.g. *"tomorrow's rank-24 hour"*.
+- Attributes `best_hour`, `worst_hour`, `hours_available`.
+
+Because each day is self-contained, plotting both sensors' `scores` gives
+a two-day chart where the rank resets to a fresh 1–24 at midnight — see
+[Dashboard charts](Dashboard-charts.md). Example: start the boiler in
+tomorrow's single best hour:
+
+```yaml
+automation:
+  - alias: "Boiler in tomorrow's best hour"
+    trigger:
+      - platform: time_pattern
+        minutes: 0
+    condition:
+      - condition: template
+        value_template: >
+          {% set s = state_attr('sensor.sems_rank_tomorrow', 'scores') %}
+          {% if s %}
+            {% set best = (s | sort(attribute='rank') | last) %}
+            {{ as_datetime(best.start) == now().replace(minute=0, second=0, microsecond=0) }}
+          {% else %}false{% endif %}
+    action:
+      - service: switch.turn_on
+        target:
+          entity_id: switch.boiler
+```
+
 ## `binary_sensor.sems_best_2h_block` (and 3h, 4h)
 
 For appliances that need **more than one block** to finish — a dishwasher

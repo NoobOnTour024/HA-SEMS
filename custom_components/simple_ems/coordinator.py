@@ -503,8 +503,8 @@ class SemsCoordinator(DataUpdateCoordinator[dict]):
         # hour gets that hour's forecast.
         pv_watts = [0.0] * blocks_available
         pv_source = "no PV entity configured"
+        hourly_pv: dict[datetime, float] = {}
         if self.pv_entity_id:
-            hourly_pv: dict[datetime, float] = {}
             pv_state = self.hass.states.get(self.pv_entity_id)
             if pv_state is None:
                 pv_source = f"PV entity {self.pv_entity_id} does not exist"
@@ -580,12 +580,60 @@ class SemsCoordinator(DataUpdateCoordinator[dict]):
                 "starts_now": index == 0,
             }
 
+        # ---- 6b. Per-calendar-day rankings (today and tomorrow) ----
+        # The rolling window above mixes today and tomorrow, so its rank
+        # scale would grow past 24 if it were extended. Instead we ALSO
+        # score each calendar day on its own: ranks stay 1..24 within the
+        # day, and the whole of today plus the whole of tomorrow (once its
+        # prices are published) is available for charts and per-day
+        # automations. Each day includes all its known blocks, so today
+        # also holds the hours that already passed.
+        def _score_day(day_start: datetime) -> list[dict]:
+            day_end = day_start + timedelta(days=1)
+            day_starts: list[datetime] = []
+            day_sources: list[float] = []
+            block = day_start
+            while block < day_end:
+                value = block_prices.get(block)
+                if value is None:  # hourly source in quarter mode
+                    value = hourly_prices.get(_hour_start(block))
+                if value is not None:
+                    day_starts.append(block)
+                    day_sources.append(value)
+                block += timedelta(minutes=block_minutes)
+            if not day_starts:
+                return []
+            if price_type == PRICE_TYPE_RAW:
+                day_raw = day_sources
+                day_all_in = [to_all_in_price(p, markup, tax, vat) for p in day_raw]
+            else:
+                day_all_in = day_sources
+                day_raw = [to_raw_price(p, markup, tax, vat) for p in day_all_in]
+            day_export = [p - export_fee for p in day_raw]
+            day_pv = [hourly_pv.get(_hour_start(b), 0.0) for b in day_starts]
+            day_scores = compute_scores(
+                day_all_in, day_export, day_pv, self.balance,
+                self.free_threshold, pv_capacity,
+            )
+            for entry, start in zip(day_scores, day_starts):
+                entry["start"] = start.isoformat()
+            return day_scores
+
+        today_midnight = dt_util.as_local(dt_util.now()).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+        today_scores = _score_day(today_midnight)
+        tomorrow_scores = _score_day(today_midnight + timedelta(days=1))
+
         # ---- 7. Package everything for the entities ----
         return {
             "scores": scores,
             "current": current,
+            "today": today_scores,
+            "tomorrow": tomorrow_scores,
             "hours_available": round(hours_available, 2),
             "blocks_available": blocks_available,
+            "blocks_per_hour": blocks_per_hour,
             "block_minutes": block_minutes,
             "best_blocks": best_blocks,
             # The free-power flag is deliberately derived from the all-in

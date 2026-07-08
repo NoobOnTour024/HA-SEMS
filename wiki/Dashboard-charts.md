@@ -27,6 +27,92 @@ Two things to know:
 Copy a card, open your dashboard → **Edit** → **Add card** → **Manual**,
 and paste.
 
+## Rank per day — today and tomorrow, each ranked 1–24
+
+![Rank per day](https://raw.githubusercontent.com/NoobOnTour024/HA-SEMS/main/assets/screenshots/card-rank-per-day.png)
+
+The cleanest way to see both days at once. It reads the
+`sensor.sems_rank_today` and `sensor.sems_rank_tomorrow` sensors, which
+rank **each calendar day on its own** — so the orange rank line runs a
+fresh 1→24 for today and again for tomorrow (it resets at midnight),
+instead of one scale stretched across two days. Before tomorrow's prices
+are published the tomorrow series is simply empty; it fills in
+automatically around 13:00.
+
+```yaml
+type: custom:apexcharts-card
+header:
+  show: true
+  title: SEMS — rank per day (today + tomorrow)
+graph_span: 48h
+span:
+  start: day
+now:
+  show: true
+  label: now
+yaxis:
+  - id: price
+    decimals: 2
+  - id: rank
+    opposite: true
+    min: 0
+    max: 24
+    decimals: 0
+series:
+  - entity: sensor.sems_rank_today
+    name: All-in price (today)
+    unit: " €/kWh"
+    type: column
+    yaxis_id: price
+    color: '#2a78d6'
+    float_precision: 3
+    data_generator: |
+      return entity.attributes.scores.map((r) => {
+        return [new Date(r.start).getTime(), r.price];
+      });
+  - entity: sensor.sems_rank_tomorrow
+    name: All-in price (tomorrow)
+    unit: " €/kWh"
+    type: column
+    yaxis_id: price
+    color: '#85b7eb'
+    float_precision: 3
+    data_generator: |
+      return entity.attributes.scores.map((r) => {
+        return [new Date(r.start).getTime(), r.price];
+      });
+  - entity: sensor.sems_rank_today
+    name: Rank today (24 = best)
+    unit: " "
+    type: line
+    yaxis_id: rank
+    color: '#eda100'
+    curve: stepline
+    stroke_width: 3
+    float_precision: 0
+    data_generator: |
+      return entity.attributes.scores.map((r) => {
+        return [new Date(r.start).getTime(), r.rank];
+      });
+  - entity: sensor.sems_rank_tomorrow
+    name: Rank tomorrow (24 = best)
+    unit: " "
+    type: line
+    yaxis_id: rank
+    color: '#efc35a'
+    curve: stepline
+    stroke_width: 3
+    float_precision: 0
+    data_generator: |
+      return entity.attributes.scores.map((r) => {
+        return [new Date(r.start).getTime(), r.rank];
+      });
+```
+
+> The cards below use the rolling 24-hour `scores_24h` attribute instead,
+> which always starts at the current hour. Use whichever framing you
+> prefer — per calendar day, or a rolling day ahead.
+
 ## 1. Prices and rank — what will power cost, and when is it my moment?
 
 ![Prices and rank](https://raw.githubusercontent.com/NoobOnTour024/HA-SEMS/main/assets/screenshots/card-prices-rank.png)

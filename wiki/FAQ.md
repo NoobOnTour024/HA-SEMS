@@ -52,6 +52,19 @@ quarters of each hour, so `sensor.sems_current_price` is the average of
 the current hour. Prefer planning per quarter? Switch Configure →
 Planning resolution to quarter-hour blocks.
 
+## My chart doesn't show all of tomorrow, even though the prices are known
+
+The main sensor (`sensor.sems_relative_score` → `scores_24h`) uses a
+**rolling 24-hour** window that always starts at the current hour, so in
+the evening its tail reaches only into tomorrow morning — the rest of
+tomorrow falls outside the window (it's not the PV forecast limiting it).
+
+To see **all of today and tomorrow**, use the per-calendar-day sensors
+`sensor.sems_rank_today` and `sensor.sems_rank_tomorrow` instead — each
+holds a full day in its `scores` attribute, ranked 1–24 on its own. The
+[Dashboard charts](Dashboard-charts.md) page has a ready-made
+"rank per day" card built on them.
+
 ## My charts show a gap for tomorrow. Is that a bug?
 
 No — those blocks have no published prices yet (they arrive around 13:00

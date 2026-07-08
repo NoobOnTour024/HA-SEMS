@@ -52,6 +52,8 @@ async def async_setup_entry(
         SemsScoreSensor(coordinator, entry),
         SemsRelativeScoreSensor(coordinator, entry),
         SemsRankSensor(coordinator, entry),
+        SemsDayRankSensor(coordinator, entry, "today"),
+        SemsDayRankSensor(coordinator, entry, "tomorrow"),
         SemsCurrentPriceSensor(coordinator, entry),
     ]
     # The diagnostics and series sensors are temporary verification aids;
@@ -185,6 +187,73 @@ class SemsRankSensor(SemsSensorBase):
         # hours_available matters for rank automations: with only 12 hours
         # of data the best possible rank is 12, not 24.
         return {"hours_available": self.coordinator.data["hours_available"]}
+
+
+class SemsDayRankSensor(SemsSensorBase):
+    """A full calendar day (today or tomorrow), ranked 1..24 within itself.
+
+    Because each day is scored on its own, the rank is always 1 (worst) to
+    24 (best) for that day, no matter the time — unlike the rolling
+    ``sensor.sems_rank``, which mixes today and tomorrow. The per-hour
+    ranks live in the ``scores`` attribute (what charts and automations
+    use); the state shows that day's best hour at a glance.
+
+    ``sensor.sems_rank_tomorrow`` is unavailable until tomorrow's prices
+    are published (typically after ~13:00 CET).
+    """
+
+    _attr_icon = "mdi:podium"
+
+    def __init__(
+        self, coordinator: SemsCoordinator, entry: ConfigEntry, day: str
+    ) -> None:
+        super().__init__(coordinator, entry, f"rank_{day}")
+        self._day = day
+        self._attr_name = f"Rank {day}"
+
+    def _day_scores(self) -> list[dict]:
+        return self.coordinator.data.get(self._day) or []
+
+    @property
+    def available(self) -> bool:
+        return super().available and bool(self._day_scores())
+
+    @property
+    def native_value(self) -> str | None:
+        """The day's best hour as HH:MM (highest rank = best)."""
+        scores = self._day_scores()
+        if not scores:
+            return None
+        best = max(scores, key=lambda s: s["rank"])
+        return best["start"][11:16]
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        scores = self._day_scores()
+        if not scores:
+            return {"scores": [], "best_hour": None, "worst_hour": None}
+        best = max(scores, key=lambda s: s["rank"])
+        worst = min(scores, key=lambda s: s["rank"])
+        blocks_per_hour = self.coordinator.data.get("blocks_per_hour", 1)
+        return {
+            # One entry per block of this calendar day, ranked within the
+            # day — ideal for a per-day chart or "tomorrow's best hour".
+            "scores": [
+                {
+                    "start": s["start"],
+                    "price": _round(s["price"], 5),
+                    "effective_price": _round(s["effective_price"], 5),
+                    "pv": _round(s["pv"], 1),
+                    "score": _round(s["score"], 1),
+                    "relative_score": _round(s["relative_score"], 1),
+                    "rank": s["rank"],
+                }
+                for s in scores
+            ],
+            "best_hour": best["start"],
+            "worst_hour": worst["start"],
+            "hours_available": round(len(scores) / blocks_per_hour, 2),
+        }
 
 
 class SemsCurrentPriceSensor(SemsSensorBase):
