@@ -110,6 +110,14 @@ Yes — leave the PV entity empty and SEMS becomes a pure price optimizer:
 the score simply follows the (all-in) price, and rank/relative score work
 the same way.
 
+## The SEMS icon shows as a placeholder in Home Assistant
+
+The SEMS logo ships inside the integration (`brand/` folder) and Home
+Assistant picks it up automatically **from version 2026.3.0 onwards**. On
+older versions custom integrations can't provide their own icon, so you'll
+see the generic placeholder until you update Home Assistant. Nothing is
+broken — it's purely cosmetic.
+
 ## Does SEMS send data anywhere or call the internet?
 
 No. SEMS reads two sensors inside your Home Assistant and does math. No
