@@ -103,11 +103,11 @@ automation:
 
 ## Notes for automation builders
 
-- **Fewer than 24 hours known?** Before ~13:00 CET, tomorrow's prices
-  aren't published yet. Rank "above 19" can then never trigger if only 18
-  hours are known. Check the `hours_available` attribute on
-  `sensor.sems_rank` if your automation must also work in the morning, or
-  use `sensor.sems_relative_score` instead (it always spans 0–100%).
+- **Rank is per calendar day.** Since v0.4.0 `sensor.sems_rank` ranks the
+  current hour within today, on a stable 1–24 scale, so "rank above 19"
+  means "one of today's 5 best hours" at any time — morning included.
+  (Before v0.4.0 it used a rolling window whose scale shrank to 14 in the
+  morning, so that threshold could never fire then.)
 - **Everything updates hourly.** Numeric-state triggers fire when the value
   crosses the threshold, which happens on the hour.
 - **The `scores_24h` attribute** on `sensor.sems_relative_score` contains

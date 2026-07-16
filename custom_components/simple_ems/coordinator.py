@@ -625,12 +625,25 @@ class SemsCoordinator(DataUpdateCoordinator[dict]):
         today_scores = _score_day(today_midnight)
         tomorrow_scores = _score_day(today_midnight + timedelta(days=1))
 
+        # The rank of the block we are in now WITHIN today. This is what
+        # sensor.sems_rank reports: a stable 1..24 scale all day long. The
+        # rolling window's own rank is not used for it, because its scale
+        # shrinks to hours_available (only 14 before tomorrow publishes),
+        # which made "rank above 19" impossible in the morning.
+        current_rank_today = next(
+            (s["rank"] for s in today_scores if s["start"] == current["start"]),
+            None,
+        )
+        today_hours = len(today_scores) / blocks_per_hour
+
         # ---- 7. Package everything for the entities ----
         return {
             "scores": scores,
             "current": current,
             "today": today_scores,
             "tomorrow": tomorrow_scores,
+            "current_rank_today": current_rank_today,
+            "today_hours": round(today_hours, 2),
             "hours_available": round(hours_available, 2),
             "blocks_available": blocks_available,
             "blocks_per_hour": blocks_per_hour,

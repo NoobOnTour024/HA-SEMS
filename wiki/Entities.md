@@ -45,28 +45,31 @@ Attributes:
 
 ## `sensor.sems_rank`
 
-The current block's rank within the window: **1 = worst, 24 = best** (or
+The current block's rank **within today**: **1 = worst, 24 = best** (or
 **1–96** with quarter-hour resolution). Ranks are unique — no two blocks
-share a rank. Great for automations: "rank above 19" always means "one of
-the 5 best hours of the coming day".
+share a rank. It's ranked against the whole calendar day, so the scale is
+a stable 1–24 from midnight to midnight: "rank above 19" means "one of
+the 5 best hours of today" at any time of day, morning included.
 
-> ⚠️ **Its scale moves during the day.** This sensor ranks within a
-> *rolling* window of however many hours are currently known — see its
-> `hours_available` attribute. Before tomorrow's prices are published
-> (~13:00 CET) that window is only what's left of today: at 10:00 it's
-> **14 hours**, so the rank runs 1–14 and can never reach 19. After
-> publication it's 24 again. So a "rank above 19" automation simply
-> cannot fire in the morning, and a rank from this sensor is **not**
-> comparable to a rank from the per-day sensors below (6-out-of-14 is a
-> different scale than 16-out-of-24 — both can be correct at the same
-> moment).
->
-> For a rank that is **always** on a 1–24 scale, use
-> `sensor.sems_rank_today` (its `current_rank` attribute) instead.
+This is the same number as the `current_rank` attribute of
+`sensor.sems_rank_today` — that sensor just also carries the full day.
 
-This sensor uses a **rolling** window (now + the next hours), so in the
-evening it already looks into tomorrow morning. For a clean per-calendar-
-day view, use the two sensors below instead.
+Attributes:
+
+- `hours_available` — how many blocks of today are ranked (normally 24;
+  the highest reachable rank).
+- `ranked_within` — `today` normally. It only says
+  `rolling window (fallback)` in the rare case your price source doesn't
+  publish the current hour as part of today.
+
+> **Changed in v0.4.0.** Before that, this sensor ranked within the
+> *rolling* window (now + the next hours), whose scale shrank to
+> `hours_available` — only 14 hours at 10:00, before tomorrow's prices
+> were published. That made "rank above 19" impossible to reach in the
+> morning, and the number wasn't comparable with the per-day sensors
+> (6-out-of-14 vs 16-out-of-24 could both be correct at the same moment).
+> The rolling per-block ranks are still available in the `scores_24h`
+> attribute of `sensor.sems_relative_score`.
 
 ## `sensor.sems_rank_today` and `sensor.sems_rank_tomorrow`
 

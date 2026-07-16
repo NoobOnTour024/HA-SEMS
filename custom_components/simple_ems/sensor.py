@@ -169,7 +169,18 @@ class SemsRelativeScoreSensor(SemsSensorBase):
 
 
 class SemsRankSensor(SemsSensorBase):
-    """Rank of the current hour within the window: 1 = worst, 24 = best."""
+    """Rank of the current hour within TODAY: 1 = worst, 24 = best.
+
+    Ranked against the whole calendar day, so the scale is a stable 1..24
+    (1..96 with quarter-hour blocks) from midnight to midnight. That makes
+    thresholds like "rank above 19" mean the same thing all day.
+
+    (Until v0.3.1 this ranked within the rolling window instead, whose
+    scale shrank to the number of known hours — only 14 before tomorrow's
+    prices were published, so "rank above 19" could never fire in the
+    morning. The rolling per-block ranks are still available in the
+    ``scores_24h`` attribute of sensor.sems_relative_score.)
+    """
 
     _attr_name = "Rank"
     _attr_icon = "mdi:podium"
@@ -180,13 +191,24 @@ class SemsRankSensor(SemsSensorBase):
 
     @property
     def native_value(self) -> int | None:
-        return self.coordinator.data["current"]["rank"]
+        data = self.coordinator.data
+        rank = data.get("current_rank_today")
+        if rank is None:
+            # Today's prices don't cover the current block (unusual: most
+            # sources publish the whole day). Fall back to the rolling
+            # window so the sensor still says something sensible.
+            rank = data["current"]["rank"]
+        return rank
 
     @property
     def extra_state_attributes(self) -> dict:
-        # hours_available matters for rank automations: with only 12 hours
-        # of data the best possible rank is 12, not 24.
-        return {"hours_available": self.coordinator.data["hours_available"]}
+        data = self.coordinator.data
+        per_day = data.get("current_rank_today") is not None
+        return {
+            # The highest rank reachable = the number of blocks ranked.
+            "hours_available": data["today_hours"] if per_day else data["hours_available"],
+            "ranked_within": "today" if per_day else "rolling window (fallback)",
+        }
 
 
 class SemsDayRankSensor(SemsSensorBase):

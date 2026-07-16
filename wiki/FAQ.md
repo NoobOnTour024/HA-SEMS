@@ -52,22 +52,18 @@ quarters of each hour, so `sensor.sems_current_price` is the average of
 the current hour. Prefer planning per quarter? Switch Configure →
 Planning resolution to quarter-hour blocks.
 
-## sensor.sems_rank says 6, but rank_today says this hour is 16. Which is right?
+## sensor.sems_rank and rank_today used to disagree. Why?
 
-**Both.** They count on different scales:
+Fixed in **v0.4.0**: `sensor.sems_rank` now ranks the current hour within
+**today** (a stable 1–24), so it matches the `current_rank` attribute of
+`sensor.sems_rank_today`.
 
-- `sensor.sems_rank` ranks within a **rolling** window of the hours it
-  currently knows. Check its `hours_available` attribute: at 10:00, before
-  tomorrow's prices are published, that's only **14** hours (10:00–23:00).
-  So "6" means *6th best of the 14 hours left today* — the scale is 1–14,
-  not 1–24.
-- `sensor.sems_rank_today` ranks within the **whole calendar day**, always
-  24 blocks. So "16" means *16th best of all 24 hours of today* — it also
-  counts this morning's hours, which `sems_rank` no longer includes.
-
-Same maths, different reference set. If you want one stable number for
-"how good is now", use the `current_rank` attribute of
-`sensor.sems_rank_today` — that is always on a 1–24 scale.
+Before v0.4.0 it ranked within the *rolling* window instead, whose scale
+was however many hours were known — see `hours_available`. At 10:00, with
+tomorrow's prices not yet published, that was only 14 hours, so it read
+"6 of 14" while `rank_today` read "16 of 24". Both were correct, but on
+different scales — and "rank above 19" could never fire in the morning.
+Updating to v0.4.0 solves it; no changes needed in your automations.
 
 ## How do I report a problem with my numbers?
 
