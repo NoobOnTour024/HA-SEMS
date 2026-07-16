@@ -5,39 +5,35 @@ Ready-to-paste dashboard cards for the excellent
 via HACS → search "apexcharts"). **Every card on this page has been loaded
 and tested in a real Home Assistant** — screenshots included.
 
-All cards read the `scores_24h` attribute of `sensor.sems_relative_score`
-and span **48 hours starting at midnight** — today and tomorrow in full —
-with a dashed *now* line marking the current moment. So in the evening
-you always see the whole of tomorrow the moment its prices are published.
-Prefer a shorter axis? Change `graph_span` to `24h` or `36h` — one line
-per card. Or let the axis
-[shrink to the known data](#advanced-an-axis-that-shrinks-to-the-known-data)
-automatically with the recipe below.
+All cards below read the two **per-calendar-day** sensors,
+`sensor.sems_rank_today` and `sensor.sems_rank_tomorrow`. That gives you:
 
-Two things to know:
+- **The whole of today, including the hours that already passed** (a bit of
+  history on the left of the chart), plus **all of tomorrow** once its
+  prices are published (~13:00 CET — before that the tomorrow half is
+  simply empty).
+- **A clean 1–24 rank per day** that resets at midnight, instead of one
+  scale stretched across two days.
 
-- **SEMS looks forward.** The data starts at the current block and
-  reaches at most 24 hours ahead, so the chart is empty before the *now*
-  line and beyond the end of the window. Want yesterday's history too?
-  See the tip at the bottom.
-- **Unknown blocks show as gaps.** Before ~13:00 CET tomorrow's prices are
-  not published yet; those blocks are `null` in `scores_24h` and simply
-  show nothing. The gap fills in by itself once the prices arrive.
+Each sensor exposes its day in the `scores` attribute — one entry per
+block with `start`, `price`, `effective_price`, `pv`, `score`,
+`relative_score` and `rank`. The cards just plot two series per metric
+(one per day).
 
 Copy a card, open your dashboard → **Edit** → **Add card** → **Manual**,
 and paste.
 
-## Rank per day — today and tomorrow, each ranked 1–24
+> Prefer a single **rolling** 24-hour axis that always starts at the
+> current hour (no history)? See
+> [Rolling 24-hour view](#rolling-24-hour-view) at the bottom.
+
+## 1. Prices and rank
 
 ![Rank per day](https://raw.githubusercontent.com/NoobOnTour024/HA-SEMS/main/assets/screenshots/card-rank-per-day.png)
 
-The cleanest way to see both days at once. It reads the
-`sensor.sems_rank_today` and `sensor.sems_rank_tomorrow` sensors, which
-rank **each calendar day on its own** — so the orange rank line runs a
-fresh 1→24 for today and again for tomorrow (it resets at midnight),
-instead of one scale stretched across two days. Before tomorrow's prices
-are published the tomorrow series is simply empty; it fills in
-automatically around 13:00.
+All-in price columns (dark = today, light = tomorrow) with each day's rank
+as a step line that runs a fresh 1→24 (dark orange today, light orange
+tomorrow). The rank line peaks at 24 on each day's best hour.
 
 ```yaml
 type: custom:apexcharts-card
@@ -67,9 +63,7 @@ series:
     color: '#2a78d6'
     float_precision: 3
     data_generator: |
-      return entity.attributes.scores.map((r) => {
-        return [new Date(r.start).getTime(), r.price];
-      });
+      return entity.attributes.scores.map((r) => [new Date(r.start).getTime(), r.price]);
   - entity: sensor.sems_rank_tomorrow
     name: All-in price (tomorrow)
     unit: " €/kWh"
@@ -78,9 +72,7 @@ series:
     color: '#85b7eb'
     float_precision: 3
     data_generator: |
-      return entity.attributes.scores.map((r) => {
-        return [new Date(r.start).getTime(), r.price];
-      });
+      return entity.attributes.scores.map((r) => [new Date(r.start).getTime(), r.price]);
   - entity: sensor.sems_rank_today
     name: Rank today (24 = best)
     unit: " "
@@ -91,9 +83,7 @@ series:
     stroke_width: 3
     float_precision: 0
     data_generator: |
-      return entity.attributes.scores.map((r) => {
-        return [new Date(r.start).getTime(), r.rank];
-      });
+      return entity.attributes.scores.map((r) => [new Date(r.start).getTime(), r.rank]);
   - entity: sensor.sems_rank_tomorrow
     name: Rank tomorrow (24 = best)
     unit: " "
@@ -104,98 +94,24 @@ series:
     stroke_width: 3
     float_precision: 0
     data_generator: |
-      return entity.attributes.scores.map((r) => {
-        return [new Date(r.start).getTime(), r.rank];
-      });
+      return entity.attributes.scores.map((r) => [new Date(r.start).getTime(), r.rank]);
 ```
 
-> The cards below use the rolling 24-hour `scores_24h` attribute instead,
-> which always starts at the current hour. Use whichever framing you
-> prefer — per calendar day, or a rolling day ahead.
-
-## 1. Prices and rank — what will power cost, and when is it my moment?
-
-![Prices and rank](https://raw.githubusercontent.com/NoobOnTour024/HA-SEMS/main/assets/screenshots/card-prices-rank.png)
-
-Blue columns: the **all-in price** you pay from the grid. Green columns:
-the **effective price** — what a kWh *really* costs you once your solar
-production is taken into account (it dives below zero on sunny days — see
-[How the score works](How-the-score-works.md)). The orange step line is
-the **rank**: it touches 24 at the best hour of the day.
-
-```yaml
-type: custom:apexcharts-card
-header:
-  show: true
-  title: SEMS — prices and rank
-graph_span: 48h
-span:
-  start: day
-now:
-  show: true
-  label: now
-yaxis:
-  - id: price
-    decimals: 2
-  - id: rank
-    opposite: true
-    min: 0
-    max: 24
-    decimals: 0
-series:
-  - entity: sensor.sems_relative_score
-    name: All-in price
-    unit: " €/kWh"
-    type: column
-    yaxis_id: price
-    color: '#2a78d6'
-    float_precision: 3
-    data_generator: |
-      return entity.attributes.scores_24h.map((row) => {
-        return [new Date(row.start).getTime(), row.price];
-      });
-  - entity: sensor.sems_relative_score
-    name: Effective price
-    unit: " €/kWh"
-    type: column
-    yaxis_id: price
-    color: '#1baf7a'
-    float_precision: 3
-    data_generator: |
-      return entity.attributes.scores_24h.map((row) => {
-        return [new Date(row.start).getTime(), row.effective_price];
-      });
-  - entity: sensor.sems_relative_score
-    name: Rank (24 = best)
-    unit: " "
-    type: line
-    yaxis_id: rank
-    color: '#eda100'
-    curve: stepline
-    stroke_width: 3
-    float_precision: 0
-    data_generator: |
-      return entity.attributes.scores_24h.map((row) => {
-        return [new Date(row.start).getTime(), row.rank];
-      });
-```
-
-## 2. Price breakdown — overlapping view
+## 2. Price breakdown — what you pay vs what it really costs
 
 ![Price breakdown](https://raw.githubusercontent.com/NoobOnTour024/HA-SEMS/main/assets/screenshots/card-price-breakdown.png)
 
-One column per hour: the **total height is the all-in price**, the green
-lower part is the **effective price**, and the blue top is your **solar
-advantage** — the part of the price your panels let you skip. In dark
-hours the column is almost entirely green: you pay the full price, no
-advantage. In sunny hours the green base is small (it can even drop below
-zero) and the blue top is large.
+One stacked column per hour: the green part is the **effective price**
+(what a kWh really costs you that hour), the blue part on top is your
+**solar advantage** (the bit your panels let you skip). Dark hours are
+almost all green; sunny hours have a small green base — even below zero —
+and a big blue top.
 
 ```yaml
 type: custom:apexcharts-card
 header:
   show: true
-  title: SEMS — what you pay vs what it really costs
+  title: SEMS — price breakdown (today + tomorrow)
 graph_span: 48h
 span:
   start: day
@@ -206,44 +122,55 @@ apex_config:
   chart:
     stacked: true
 series:
-  - entity: sensor.sems_relative_score
-    name: Effective price
+  - entity: sensor.sems_rank_today
+    name: Effective price (today)
     unit: " €/kWh"
     type: column
     color: '#1baf7a'
     float_precision: 3
     data_generator: |
-      return entity.attributes.scores_24h.map((row) => {
-        return [new Date(row.start).getTime(), row.effective_price];
-      });
-  - entity: sensor.sems_relative_score
-    name: Solar advantage
+      return entity.attributes.scores.map((r) => [new Date(r.start).getTime(), r.effective_price]);
+  - entity: sensor.sems_rank_today
+    name: Solar advantage (today)
     unit: " €/kWh"
     type: column
     color: '#2a78d6'
     float_precision: 3
     data_generator: |
-      return entity.attributes.scores_24h.map((row) => {
-        return [new Date(row.start).getTime(),
-                row.price === null ? null :
-                Math.round((row.price - row.effective_price) * 100000) / 100000];
-      });
+      return entity.attributes.scores.map((r) => [new Date(r.start).getTime(),
+        r.price === null ? null : Math.round((r.price - r.effective_price) * 100000) / 100000]);
+  - entity: sensor.sems_rank_tomorrow
+    name: Effective price (tomorrow)
+    unit: " €/kWh"
+    type: column
+    color: '#1baf7a'
+    float_precision: 3
+    data_generator: |
+      return entity.attributes.scores.map((r) => [new Date(r.start).getTime(), r.effective_price]);
+  - entity: sensor.sems_rank_tomorrow
+    name: Solar advantage (tomorrow)
+    unit: " €/kWh"
+    type: column
+    color: '#2a78d6'
+    float_precision: 3
+    data_generator: |
+      return entity.attributes.scores.map((r) => [new Date(r.start).getTime(),
+        r.price === null ? null : Math.round((r.price - r.effective_price) * 100000) / 100000]);
 ```
 
-## 3. Score and solar forecast
+## 3. Score and sun
 
 ![Score and sun](https://raw.githubusercontent.com/NoobOnTour024/HA-SEMS/main/assets/screenshots/card-score-sun.png)
 
-The score as columns (the higher, the better that hour) with the expected
-solar production as a soft area behind it. Great for developing intuition:
-you *see* why the score rises when the sun comes out. Free-power hours
-poke above the 100 line.
+The score as columns (higher = better hour) with the solar forecast as a
+soft area behind it — so you *see* why the score rises when the sun comes
+out. Today is the darker pair, tomorrow the lighter pair.
 
 ```yaml
 type: custom:apexcharts-card
 header:
   show: true
-  title: SEMS — score and sun
+  title: SEMS — score and sun (today + tomorrow)
 graph_span: 48h
 span:
   start: day
@@ -259,19 +186,26 @@ yaxis:
     min: 0
     decimals: 1
 series:
-  - entity: sensor.sems_relative_score
-    name: Score
+  - entity: sensor.sems_rank_today
+    name: Score (today)
     unit: " pts"
     type: column
     yaxis_id: score
     color: '#1baf7a'
     float_precision: 1
     data_generator: |
-      return entity.attributes.scores_24h.map((row) => {
-        return [new Date(row.start).getTime(), row.score];
-      });
-  - entity: sensor.sems_relative_score
-    name: Solar forecast
+      return entity.attributes.scores.map((r) => [new Date(r.start).getTime(), r.score]);
+  - entity: sensor.sems_rank_tomorrow
+    name: Score (tomorrow)
+    unit: " pts"
+    type: column
+    yaxis_id: score
+    color: '#9fe1cb'
+    float_precision: 1
+    data_generator: |
+      return entity.attributes.scores.map((r) => [new Date(r.start).getTime(), r.score]);
+  - entity: sensor.sems_rank_today
+    name: Solar (today)
     unit: " kW"
     type: area
     yaxis_id: pv
@@ -281,24 +215,32 @@ series:
     curve: smooth
     float_precision: 1
     data_generator: |
-      return entity.attributes.scores_24h.map((row) => {
-        return [new Date(row.start).getTime(),
-                row.pv === null ? null : row.pv / 1000];
-      });
+      return entity.attributes.scores.map((r) => [new Date(r.start).getTime(),
+        r.pv === null ? null : r.pv / 1000]);
+  - entity: sensor.sems_rank_tomorrow
+    name: Solar (tomorrow)
+    unit: " kW"
+    type: area
+    yaxis_id: pv
+    color: '#efc35a'
+    opacity: 0.25
+    stroke_width: 2
+    curve: smooth
+    float_precision: 1
+    data_generator: |
+      return entity.attributes.scores.map((r) => [new Date(r.start).getTime(),
+        r.pv === null ? null : r.pv / 1000]);
 ```
 
 ## 4. Appliance planner — rank with a top-5 line
 
 ![Appliance planner](https://raw.githubusercontent.com/NoobOnTour024/HA-SEMS/main/assets/screenshots/card-appliance-planner.png)
 
-Just the rank, with a dashed marker line at 19.5: every column that pokes
-above it is a **top-5 hour** of the coming day — the hours where a
-"rank above 19" automation (see
-[Example automations](Example-automations.md)) will fire.
-
-> Using quarter-hour resolution? Rank runs 1–96 there; change the yaxis
-> `max` to 96 and the annotation `y` to e.g. 77.5 (top-20 blocks ≈ top-5
-> hours).
+Just the rank for both days, with a dashed line at 19.5: every column
+above it is a **top-5 hour** of that day — where a "rank above 19"
+automation (see [Example automations](Example-automations.md)) fires.
+Because each day is ranked on its own, the line means the same thing on
+both days.
 
 ```yaml
 type: custom:apexcharts-card
@@ -327,31 +269,49 @@ apex_config:
             color: '#ffffff'
             background: '#1baf7a'
 series:
-  - entity: sensor.sems_relative_score
-    name: Rank (24 = best)
+  - entity: sensor.sems_rank_today
+    name: Rank today
     unit: " "
     type: column
     color: '#2a78d6'
     float_precision: 0
     data_generator: |
-      return entity.attributes.scores_24h.map((row) => {
-        return [new Date(row.start).getTime(), row.rank];
-      });
+      return entity.attributes.scores.map((r) => [new Date(r.start).getTime(), r.rank]);
+  - entity: sensor.sems_rank_tomorrow
+    name: Rank tomorrow
+    unit: " "
+    type: column
+    color: '#85b7eb'
+    float_precision: 0
+    data_generator: |
+      return entity.attributes.scores.map((r) => [new Date(r.start).getTime(), r.rank]);
 ```
 
-## Advanced: an axis that shrinks to the known data
+## Rolling 24-hour view
 
-A 48-hour axis always shows everything, but the part where prices are not
-published yet is inevitably empty. ApexCharts itself cannot resize its
-time axis to the data — but the small helper card
+If you'd rather see one continuous window that always **starts at the
+current hour** (no history, tail reaching into tomorrow morning), use the
+`scores_24h` attribute of `sensor.sems_relative_score` instead of the
+per-day sensors. It holds 24 forward-looking entries with the same fields
+(`price`, `effective_price`, `pv`, `score`, `rank`). Swap the two series
+in card 1 for a single series like:
+
+```yaml
+  - entity: sensor.sems_relative_score
+    name: All-in price
+    unit: " €/kWh"
+    type: column
+    yaxis_id: price
+    float_precision: 3
+    data_generator: |
+      return entity.attributes.scores_24h.map((r) => [new Date(r.start).getTime(), r.price]);
+```
+
+The window reaches at most 24 hours ahead, so the axis is empty before
+*now* and past the end of the window. To make the axis shrink to exactly
+the known data, wrap the card in
 [config-template-card](https://github.com/iantrich/config-template-card)
-(HACS → search "config template card") can compute the span live, so the
-axis ends **exactly at the last known price block**: ~24 hours wide in the
-morning, growing to ~45 hours in the evening once tomorrow is published.
-Tested like everything on this page.
-
-Wrap any card from this page like this — paste the full card under
-`card:` and replace only its `graph_span` line with the template:
+and compute `graph_span` from `hours_available`:
 
 ```yaml
 type: custom:config-template-card
@@ -365,20 +325,14 @@ card:
   # ... the rest of the card, unchanged (span, now, series, ...)
 ```
 
-The template adds "hours since midnight" to SEMS's `hours_available`, so
-the span always runs from midnight to the end of the known window and the
-chart re-fits automatically whenever new prices arrive.
-
 ## Good to know
 
 - Everything refreshes at the start of each block (hour or quarter), and
   immediately when you move `number.sems_balance` — handy to see the
   effect of the slider live.
-- Want to see the **past hours of today** as well? Add a series without a
-  `data_generator`: apexcharts-card then charts the recorded history of
-  the sensor itself, e.g. `entity: sensor.sems_relative_score` with
-  `group_by: {func: avg, duration: 1h}`. SEMS's own attribute data always
-  looks forward.
-- Free-power hours can push the score above 100 and the effective price
-  below zero — both are intentional, see
+- The per-day history (today's earlier hours) is recomputed with your
+  *current* settings; prices don't change retroactively, so it matches
+  what those hours actually were.
+- Free-power hours push the score above 100 and the effective price below
+  zero — both intentional, see
   [How the score works](How-the-score-works.md).

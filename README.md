@@ -22,11 +22,11 @@ language** — including how the calculation works, with pictures.
 ## What it looks like
 
 The all-in price, the *effective* price (what a kWh really costs you once
-your solar production is counted in) and the rank of every hour of today
-— with ready-to-paste cards from the
+your solar production is counted in) and each hour's rank — for today and
+tomorrow, each ranked on its own — with ready-to-paste cards from the
 [Dashboard charts wiki page](wiki/Dashboard-charts.md):
 
-![Prices and rank](assets/screenshots/card-prices-rank.png)
+![Rank per day](assets/screenshots/card-rank-per-day.png)
 
 Where your money actually goes, hour by hour — the blue part is what your
 panels save you:
