@@ -120,3 +120,9 @@ keeps working. You can switch it back on any time something looks odd.
 - Check **Settings → System → Logs** and search for `sems` — SEMS logs a
   clear warning whenever it can't read something.
 - The [FAQ](FAQ.md) covers the common cases.
+- **Download diagnostics**: Settings → Devices & services → SEMS → the
+  three dots → *Download diagnostics*. That JSON holds your settings,
+  everything SEMS computed, and the raw attributes of your price and PV
+  entities — so your exact situation can be replayed and checked instead
+  of guessed at. It contains no passwords or tokens; attach it to a
+  GitHub issue.

@@ -235,7 +235,16 @@ class SemsDayRankSensor(SemsSensorBase):
         best = max(scores, key=lambda s: s["rank"])
         worst = min(scores, key=lambda s: s["rank"])
         blocks_per_hour = self.coordinator.data.get("blocks_per_hour", 1)
+        # The rank of the block we are in right now, within THIS day —
+        # always on a stable 1..24 scale, unlike sensor.sems_rank whose
+        # scale follows hours_available (only 14 before tomorrow's prices
+        # are published). Naturally None for tomorrow: "now" isn't in it.
+        current_start = (self.coordinator.data.get("current") or {}).get("start")
+        current_rank = next(
+            (s["rank"] for s in scores if s["start"] == current_start), None
+        )
         return {
+            "current_rank": current_rank,
             # One entry per block of this calendar day, ranked within the
             # day — ideal for a per-day chart or "tomorrow's best hour".
             "scores": [

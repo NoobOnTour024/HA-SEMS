@@ -50,8 +50,19 @@ The current block's rank within the window: **1 = worst, 24 = best** (or
 share a rank. Great for automations: "rank above 19" always means "one of
 the 5 best hours of the coming day".
 
-Attribute `hours_available`: with fewer than 24 known hours, the best
-possible rank is lower too (e.g. 18 when 18 hours are known).
+> ⚠️ **Its scale moves during the day.** This sensor ranks within a
+> *rolling* window of however many hours are currently known — see its
+> `hours_available` attribute. Before tomorrow's prices are published
+> (~13:00 CET) that window is only what's left of today: at 10:00 it's
+> **14 hours**, so the rank runs 1–14 and can never reach 19. After
+> publication it's 24 again. So a "rank above 19" automation simply
+> cannot fire in the morning, and a rank from this sensor is **not**
+> comparable to a rank from the per-day sensors below (6-out-of-14 is a
+> different scale than 16-out-of-24 — both can be correct at the same
+> moment).
+>
+> For a rank that is **always** on a 1–24 scale, use
+> `sensor.sems_rank_today` (its `current_rank` attribute) instead.
 
 This sensor uses a **rolling** window (now + the next hours), so in the
 evening it already looks into tomorrow morning. For a clean per-calendar-
@@ -68,6 +79,11 @@ today (including the hours that already passed); `sems_rank_tomorrow` is
 
 - **State**: that day's **best hour**, as `HH:MM` (e.g. `13:00`) — a
   glanceable "run big things around this time".
+- **Attribute `current_rank`**: the rank of the block you are in **right
+  now** within that day, on a stable 1–24 scale. This is the number to
+  use if you want "how good is now?" — on `sems_rank_today` it always
+  works; on `sems_rank_tomorrow` it is empty, because "now" isn't in
+  tomorrow.
 - **Attribute `scores`**: one entry per block of the day, each with
   `start`, `price`, `effective_price`, `pv`, `score`, `relative_score` and
   `rank` (1–24 within the day). This is what charts and per-day

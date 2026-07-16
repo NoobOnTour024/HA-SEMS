@@ -52,6 +52,31 @@ quarters of each hour, so `sensor.sems_current_price` is the average of
 the current hour. Prefer planning per quarter? Switch Configure →
 Planning resolution to quarter-hour blocks.
 
+## sensor.sems_rank says 6, but rank_today says this hour is 16. Which is right?
+
+**Both.** They count on different scales:
+
+- `sensor.sems_rank` ranks within a **rolling** window of the hours it
+  currently knows. Check its `hours_available` attribute: at 10:00, before
+  tomorrow's prices are published, that's only **14** hours (10:00–23:00).
+  So "6" means *6th best of the 14 hours left today* — the scale is 1–14,
+  not 1–24.
+- `sensor.sems_rank_today` ranks within the **whole calendar day**, always
+  24 blocks. So "16" means *16th best of all 24 hours of today* — it also
+  counts this morning's hours, which `sems_rank` no longer includes.
+
+Same maths, different reference set. If you want one stable number for
+"how good is now", use the `current_rank` attribute of
+`sensor.sems_rank_today` — that is always on a 1–24 scale.
+
+## How do I report a problem with my numbers?
+
+Go to **Settings → Devices & services → SEMS**, click the three dots and
+choose **Download diagnostics**. The file contains your settings,
+everything SEMS computed, and the raw attributes of your price and PV
+entities — enough to replay your exact situation elsewhere. It contains no
+passwords or tokens.
+
 ## My chart doesn't show all of tomorrow, even though the prices are known
 
 The main sensor (`sensor.sems_relative_score` → `scores_24h`) uses a
