@@ -106,8 +106,7 @@ SEMS → Configure**. Details: [Configuration](wiki/Configuration.md).
 | Entity | What it tells you |
 |---|---|
 | `sensor.sems_relative_score` | Current hour compared to the coming 24h: 0% = worst hour, 100% = best hour (best of the day — not "free"!). Attribute `scores_24h` holds the full 24h breakdown for graphs and automations. |
-| `sensor.sems_rank` | Rank of the current hour **within today**: 1 = worst, 24 = best. Stable 1–24 all day, so "rank above 19" = one of today's 5 best hours. |
-| `sensor.sems_rank_today` / `sensor.sems_rank_tomorrow` | Each calendar day ranked on its own (1–24). State = that day's best hour; the full ranked day is in the `scores` attribute. Tomorrow is available once its prices publish (~13:00). |
+| `sensor.sems_rank` | Rank of the current hour **within today**: 1 = worst, 24 = best (stable 1–24 all day, so "rank above 19" = one of today's 5 best hours). Its `scores` attribute holds today + tomorrow (each ranked on its own) for charts and automations; `best_hour_today` / `best_hour_tomorrow` give each day's best hour. |
 | `sensor.sems_current_price` | The all-in price of the current hour (to verify the tax conversion). |
 | `binary_sensor.sems_free_power` | ON when the current all-in price is below the free-power threshold. |
 | `binary_sensor.sems_best_2h_block` (+ 3h, 4h) | ON when the best consecutive 2/3/4-hour run starts now — for appliances that need longer than one block. Attributes show the planned start. |

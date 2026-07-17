@@ -52,18 +52,24 @@ quarters of each hour, so `sensor.sems_current_price` is the average of
 the current hour. Prefer planning per quarter? Switch Configure →
 Planning resolution to quarter-hour blocks.
 
-## sensor.sems_rank and rank_today used to disagree. Why?
+## Where did sensor.sems_rank_today and sems_rank_tomorrow go?
 
-Fixed in **v0.4.0**: `sensor.sems_rank` now ranks the current hour within
-**today** (a stable 1–24), so it matches the `current_rank` attribute of
-`sensor.sems_rank_today`.
+Merged into `sensor.sems_rank` in **v0.5.0**. Its `scores` attribute now
+holds both today and tomorrow (each ranked 1–24 on its own), and
+`best_hour_today` / `best_hour_tomorrow` give each day's best hour. One
+sensor, one attribute, simpler charts (one series instead of two). If you
+had the old sensors on a dashboard, point the cards at `sensor.sems_rank`
+— see [Dashboard charts](Dashboard-charts.md). The old entities are
+removed automatically on update.
 
-Before v0.4.0 it ranked within the *rolling* window instead, whose scale
-was however many hours were known — see `hours_available`. At 10:00, with
-tomorrow's prices not yet published, that was only 14 hours, so it read
-"6 of 14" while `rank_today` read "16 of 24". Both were correct, but on
-different scales — and "rank above 19" could never fire in the morning.
-Updating to v0.4.0 solves it; no changes needed in your automations.
+## sensor.sems_rank was showing a strange number in the morning
+
+Fixed in **v0.4.0**: it ranks the current hour within **today** now (a
+stable 1–24), so "rank above 19" works all day. Before that it ranked
+within a rolling window whose scale shrank to `hours_available` — only 14
+hours at 10:00, before tomorrow's prices publish — so it could read "6 of
+14" and never reach 19 in the morning. Updating solves it; no automation
+changes needed.
 
 ## How do I report a problem with my numbers?
 
@@ -80,11 +86,10 @@ The main sensor (`sensor.sems_relative_score` → `scores_24h`) uses a
 the evening its tail reaches only into tomorrow morning — the rest of
 tomorrow falls outside the window (it's not the PV forecast limiting it).
 
-To see **all of today and tomorrow**, use the per-calendar-day sensors
-`sensor.sems_rank_today` and `sensor.sems_rank_tomorrow` instead — each
-holds a full day in its `scores` attribute, ranked 1–24 on its own. The
-[Dashboard charts](Dashboard-charts.md) page has a ready-made
-"rank per day" card built on them.
+To see **all of today and tomorrow**, use the `scores` attribute of
+`sensor.sems_rank` instead — it holds both days back to back, each ranked
+1–24 on its own. The [Dashboard charts](Dashboard-charts.md) page's cards
+are all built on it.
 
 ## My charts show a gap for tomorrow. Is that a bug?
 

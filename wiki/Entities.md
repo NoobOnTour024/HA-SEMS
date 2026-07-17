@@ -51,52 +51,28 @@ share a rank. It's ranked against the whole calendar day, so the scale is
 a stable 1–24 from midnight to midnight: "rank above 19" means "one of
 the 5 best hours of today" at any time of day, morning included.
 
-This is the same number as the `current_rank` attribute of
-`sensor.sems_rank_today` — that sensor just also carries the full day.
-
 Attributes:
 
+- **`scores`** — the big one: **today and tomorrow back to back** (up to
+  48 hours), one entry per block with `start`, `price`, `effective_price`,
+  `pv`, `score`, `relative_score` and `rank` (each day ranked 1–24 on its
+  own). This is what charts and per-day automations read; because the
+  timestamps carry the day, the rank resets to 1 at midnight. Today
+  includes the hours that already passed; tomorrow's entries appear once
+  its prices are published (~13:00 CET). *(Not stored in the recorder
+  database — it's a forecast; the live value is always available.)*
+- **`current_rank`** — the same value as the state (the current block's
+  rank within today), handy in templates.
+- **`best_hour_today`** / **`best_hour_tomorrow`** — the ISO start of each
+  day's single best (rank-highest) block. `best_hour_tomorrow` is `null`
+  until tomorrow's prices publish.
 - `hours_available` — how many blocks of today are ranked (normally 24;
-  the highest reachable rank).
-- `ranked_within` — `today` normally. It only says
-  `rolling window (fallback)` in the rare case your price source doesn't
-  publish the current hour as part of today.
+  the highest reachable rank). `ranked_within` — `today` normally; only
+  `rolling window (fallback)` in the rare case a price source doesn't
+  publish the current hour as part of today. `block_minutes` — 60 or 15.
 
-> **Changed in v0.4.0.** Before that, this sensor ranked within the
-> *rolling* window (now + the next hours), whose scale shrank to
-> `hours_available` — only 14 hours at 10:00, before tomorrow's prices
-> were published. That made "rank above 19" impossible to reach in the
-> morning, and the number wasn't comparable with the per-day sensors
-> (6-out-of-14 vs 16-out-of-24 could both be correct at the same moment).
-> The rolling per-block ranks are still available in the `scores_24h`
-> attribute of `sensor.sems_relative_score`.
-
-## `sensor.sems_rank_today` and `sensor.sems_rank_tomorrow`
-
-Each of these ranks **one whole calendar day on its own**, so the rank is
-always **1 (worst) … 24 (best)** for that day — no matter the time, and no
-matter how much of tomorrow is known. `sems_rank_today` covers all of
-today (including the hours that already passed); `sems_rank_tomorrow` is
-`unavailable` until tomorrow's prices are published (typically after
-~13:00 CET), then covers all of tomorrow.
-
-- **State**: that day's **best hour**, as `HH:MM` (e.g. `13:00`) — a
-  glanceable "run big things around this time".
-- **Attribute `current_rank`**: the rank of the block you are in **right
-  now** within that day, on a stable 1–24 scale. This is the number to
-  use if you want "how good is now?" — on `sems_rank_today` it always
-  works; on `sems_rank_tomorrow` it is empty, because "now" isn't in
-  tomorrow.
-- **Attribute `scores`**: one entry per block of the day, each with
-  `start`, `price`, `effective_price`, `pv`, `score`, `relative_score` and
-  `rank` (1–24 within the day). This is what charts and per-day
-  automations read — e.g. *"tomorrow's rank-24 hour"*.
-- Attributes `best_hour`, `worst_hour`, `hours_available`.
-
-Because each day is self-contained, plotting both sensors' `scores` gives
-a two-day chart where the rank resets to a fresh 1–24 at midnight — see
-[Dashboard charts](Dashboard-charts.md). Example: start the boiler in
-tomorrow's single best hour:
+Example: start the boiler in tomorrow's single best hour, straight from
+`best_hour_tomorrow`:
 
 ```yaml
 automation:
@@ -107,16 +83,22 @@ automation:
     condition:
       - condition: template
         value_template: >
-          {% set s = state_attr('sensor.sems_rank_tomorrow', 'scores') %}
-          {% if s %}
-            {% set best = (s | sort(attribute='rank') | last) %}
-            {{ as_datetime(best.start) == now().replace(minute=0, second=0, microsecond=0) }}
-          {% else %}false{% endif %}
+          {% set best = state_attr('sensor.sems_rank', 'best_hour_tomorrow') %}
+          {{ best is not none
+             and as_datetime(best) == now().replace(minute=0, second=0, microsecond=0) }}
     action:
       - service: switch.turn_on
         target:
           entity_id: switch.boiler
 ```
+
+> **Changed over time.** Until v0.4.0 this ranked within the *rolling*
+> window, whose scale shrank in the morning (only 14 at 10:00), so "rank
+> above 19" could never fire before noon. v0.5.0 merged the separate
+> `sensor.sems_rank_today` / `sensor.sems_rank_tomorrow` sensors into the
+> `scores` attribute here — if you had those on a dashboard, point the
+> cards at `sensor.sems_rank` instead. The rolling per-block ranks are
+> still in the `scores_24h` attribute of `sensor.sems_relative_score`.
 
 ## `binary_sensor.sems_best_2h_block` (and 3h, 4h)
 

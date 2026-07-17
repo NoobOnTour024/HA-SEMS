@@ -2,12 +2,14 @@
 
 Five sensors are created (the last one only when debug mode is on):
 
-* ``sensor.sems_relative_score`` — 0–100%, current hour vs the 24h window.
-                                   Carries the full 24h breakdown in the
-                                   ``scores_24h`` attribute — this is the
-                                   main sensor for automations and charts.
-* ``sensor.sems_rank``           — 1..24, rank of the current hour
-                                   (1 = worst, 24 = best).
+* ``sensor.sems_relative_score`` — 0–100%, current block vs the rolling 24h
+                                   window. Carries that window in the
+                                   ``scores_24h`` attribute.
+* ``sensor.sems_rank``           — 1..24, rank of the current block within
+                                   today. Its ``scores`` attribute carries
+                                   today + tomorrow (per-day ranks) — the
+                                   main attribute for charts and per-day
+                                   automations.
 * ``sensor.sems_current_price``  — the converted all-in price of the current
                                    hour, so users can verify the tax math.
 * ``sensor.sems_score``          — the raw internal score of the current
@@ -33,11 +35,28 @@ from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import CONF_DEBUG_MODE, DEFAULT_DEBUG_MODE, DOMAIN
 from .coordinator import SemsCoordinator
+
+# Unique-id suffixes of sensors that older versions created but this one no
+# longer does. They are removed on setup so they don't linger as
+# "unavailable" after an update.
+_REMOVED_SUFFIXES = ("_rank_today", "_rank_tomorrow")
+
+
+def _remove_stale_entities(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Delete entities from removed sensors (merged into sensor.sems_rank)."""
+    registry = er.async_get(hass)
+    for suffix in _REMOVED_SUFFIXES:
+        entity_id = registry.async_get_entity_id(
+            "sensor", DOMAIN, f"{entry.entry_id}{suffix}"
+        )
+        if entity_id:
+            registry.async_remove(entity_id)
 
 
 async def async_setup_entry(
@@ -47,13 +66,12 @@ async def async_setup_entry(
 ) -> None:
     """Create the SEMS sensors for this config entry."""
     coordinator: SemsCoordinator = hass.data[DOMAIN][entry.entry_id]
+    _remove_stale_entities(hass, entry)
 
     entities: list[SensorEntity] = [
         SemsScoreSensor(coordinator, entry),
         SemsRelativeScoreSensor(coordinator, entry),
         SemsRankSensor(coordinator, entry),
-        SemsDayRankSensor(coordinator, entry, "today"),
-        SemsDayRankSensor(coordinator, entry, "tomorrow"),
         SemsCurrentPriceSensor(coordinator, entry),
     ]
     # The diagnostics and series sensors are temporary verification aids;
@@ -131,6 +149,11 @@ class SemsRelativeScoreSensor(SemsSensorBase):
     _attr_icon = "mdi:percent"
     _attr_native_unit_of_measurement = "%"
     _attr_state_class = SensorStateClass.MEASUREMENT
+    # scores_24h is a large forecast blob (up to ~13 KB in quarter mode).
+    # Keep it out of the database: it is a forecast (never looked back at)
+    # and would risk the recorder's 16 KB attribute limit. The live value
+    # stays available for charts and automations.
+    _unrecorded_attributes = frozenset({"scores_24h"})
 
     def __init__(self, coordinator: SemsCoordinator, entry: ConfigEntry) -> None:
         super().__init__(coordinator, entry, "relative_score")
@@ -168,23 +191,55 @@ class SemsRelativeScoreSensor(SemsSensorBase):
         }
 
 
+def _day_entry(scores: list[dict]) -> list[dict]:
+    """Round a day's score list into attribute form (one entry per block)."""
+    return [
+        {
+            "start": s["start"],
+            "price": _round(s["price"], 5),
+            "effective_price": _round(s["effective_price"], 5),
+            "pv": _round(s["pv"], 1),
+            "score": _round(s["score"], 1),
+            "relative_score": _round(s["relative_score"], 1),
+            "rank": s["rank"],
+        }
+        for s in scores
+    ]
+
+
+def _best_hour(scores: list[dict]) -> str | None:
+    """ISO start of the highest-ranked (best) block of a day, or None."""
+    if not scores:
+        return None
+    return max(scores, key=lambda s: s["rank"])["start"]
+
+
 class SemsRankSensor(SemsSensorBase):
-    """Rank of the current hour within TODAY: 1 = worst, 24 = best.
+    """Rank of the current block within TODAY: 1 = worst, 24 = best.
 
     Ranked against the whole calendar day, so the scale is a stable 1..24
-    (1..96 with quarter-hour blocks) from midnight to midnight. That makes
-    thresholds like "rank above 19" mean the same thing all day.
+    (1..96 with quarter-hour blocks) from midnight to midnight — "rank
+    above 19" means the same thing all day, morning included.
 
-    (Until v0.3.1 this ranked within the rolling window instead, whose
-    scale shrank to the number of known hours — only 14 before tomorrow's
-    prices were published, so "rank above 19" could never fire in the
-    morning. The rolling per-block ranks are still available in the
-    ``scores_24h`` attribute of sensor.sems_relative_score.)
+    The ``scores`` attribute carries **both** today and tomorrow (up to 48h
+    / 192 blocks), each block with its per-day rank and a real timestamp,
+    so a chart plotting ``scores`` shows both days and the rank resets to
+    1 at midnight. ``best_hour_today`` / ``best_hour_tomorrow`` give the
+    single best block of each day; tomorrow is empty until its prices are
+    published (~13:00 CET).
+
+    (Before v0.5.0 this data was split over sensor.sems_rank_today and
+    sensor.sems_rank_tomorrow. Before v0.4.0 the state ranked within the
+    rolling window, whose scale shrank in the morning. The rolling
+    per-block ranks are still in scores_24h on sensor.sems_relative_score.)
     """
 
     _attr_name = "Rank"
     _attr_icon = "mdi:podium"
     _attr_state_class = SensorStateClass.MEASUREMENT
+    # scores holds up to ~26 KB (192 blocks in quarter mode): keep this
+    # forecast blob out of the recorder (16 KB limit). Live value stays.
+    _unrecorded_attributes = frozenset({"scores"})
 
     def __init__(self, coordinator: SemsCoordinator, entry: ConfigEntry) -> None:
         super().__init__(coordinator, entry, "rank")
@@ -203,87 +258,20 @@ class SemsRankSensor(SemsSensorBase):
     @property
     def extra_state_attributes(self) -> dict:
         data = self.coordinator.data
+        today = data.get("today") or []
+        tomorrow = data.get("tomorrow") or []
         per_day = data.get("current_rank_today") is not None
         return {
-            # The highest rank reachable = the number of blocks ranked.
+            "current_rank": data.get("current_rank_today"),
+            # Both calendar days back to back, each ranked 1..N within
+            # itself. Charts read this single attribute for the full view.
+            "scores": _day_entry(today) + _day_entry(tomorrow),
+            "best_hour_today": _best_hour(today),
+            "best_hour_tomorrow": _best_hour(tomorrow),
+            # Highest rank reachable today = number of blocks ranked.
             "hours_available": data["today_hours"] if per_day else data["hours_available"],
             "ranked_within": "today" if per_day else "rolling window (fallback)",
-        }
-
-
-class SemsDayRankSensor(SemsSensorBase):
-    """A full calendar day (today or tomorrow), ranked 1..24 within itself.
-
-    Because each day is scored on its own, the rank is always 1 (worst) to
-    24 (best) for that day, no matter the time — unlike the rolling
-    ``sensor.sems_rank``, which mixes today and tomorrow. The per-hour
-    ranks live in the ``scores`` attribute (what charts and automations
-    use); the state shows that day's best hour at a glance.
-
-    ``sensor.sems_rank_tomorrow`` is unavailable until tomorrow's prices
-    are published (typically after ~13:00 CET).
-    """
-
-    _attr_icon = "mdi:podium"
-
-    def __init__(
-        self, coordinator: SemsCoordinator, entry: ConfigEntry, day: str
-    ) -> None:
-        super().__init__(coordinator, entry, f"rank_{day}")
-        self._day = day
-        self._attr_name = f"Rank {day}"
-
-    def _day_scores(self) -> list[dict]:
-        return self.coordinator.data.get(self._day) or []
-
-    @property
-    def available(self) -> bool:
-        return super().available and bool(self._day_scores())
-
-    @property
-    def native_value(self) -> str | None:
-        """The day's best hour as HH:MM (highest rank = best)."""
-        scores = self._day_scores()
-        if not scores:
-            return None
-        best = max(scores, key=lambda s: s["rank"])
-        return best["start"][11:16]
-
-    @property
-    def extra_state_attributes(self) -> dict:
-        scores = self._day_scores()
-        if not scores:
-            return {"scores": [], "best_hour": None, "worst_hour": None}
-        best = max(scores, key=lambda s: s["rank"])
-        worst = min(scores, key=lambda s: s["rank"])
-        blocks_per_hour = self.coordinator.data.get("blocks_per_hour", 1)
-        # The rank of the block we are in right now, within THIS day —
-        # always on a stable 1..24 scale, unlike sensor.sems_rank whose
-        # scale follows hours_available (only 14 before tomorrow's prices
-        # are published). Naturally None for tomorrow: "now" isn't in it.
-        current_start = (self.coordinator.data.get("current") or {}).get("start")
-        current_rank = next(
-            (s["rank"] for s in scores if s["start"] == current_start), None
-        )
-        return {
-            "current_rank": current_rank,
-            # One entry per block of this calendar day, ranked within the
-            # day — ideal for a per-day chart or "tomorrow's best hour".
-            "scores": [
-                {
-                    "start": s["start"],
-                    "price": _round(s["price"], 5),
-                    "effective_price": _round(s["effective_price"], 5),
-                    "pv": _round(s["pv"], 1),
-                    "score": _round(s["score"], 1),
-                    "relative_score": _round(s["relative_score"], 1),
-                    "rank": s["rank"],
-                }
-                for s in scores
-            ],
-            "best_hour": best["start"],
-            "worst_hour": worst["start"],
-            "hours_available": round(len(scores) / blocks_per_hour, 2),
+            "block_minutes": data["block_minutes"],
         }
 
 
@@ -329,6 +317,7 @@ class SemsDiagnosticsSensor(SemsSensorBase):
 
     _attr_name = "Diagnostics"
     _attr_icon = "mdi:stethoscope"
+    _unrecorded_attributes = frozenset({"hourly_overview"})
 
     def __init__(self, coordinator: SemsCoordinator, entry: ConfigEntry) -> None:
         super().__init__(coordinator, entry, "diagnostics")
@@ -389,6 +378,7 @@ class SemsSeriesSensorBase(SemsSensorBase):
     """
 
     _attr_state_class = SensorStateClass.MEASUREMENT
+    _unrecorded_attributes = frozenset({"series"})
 
     def _series(self, field: str, digits: int) -> list[dict]:
         return [
