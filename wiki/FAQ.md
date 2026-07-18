@@ -203,6 +203,47 @@ No, by design. SEMS gives you honest numbers; your automations decide what
 to do with them. See [Example automations](Example-automations.md) for
 copy-paste starting points.
 
+## The solar forecast looks much lower than what my panels really do
+
+First, two things that are **not** wrong:
+
+- **SEMS does not invent or scale the forecast.** It copies the numbers out
+  of the forecast entity you selected, unchanged — the `pv` values in
+  `scores` are exactly what that entity said. So a low forecast in SEMS
+  means a low forecast at the source.
+- **The number is the hourly _average_ in Watts, not the peak.** An array
+  never averages its peak power over a whole hour, so the forecast is
+  legitimately lower than the highest number your inverter shows.
+
+That said, if the forecast peaks at 1–2 kW while you have 5 kWp on the
+roof, something upstream is off. Check, in this order:
+
+1. **Your forecast integration has its own power setting**, completely
+   separate from SEMS's "installed PV capacity". In core **Forecast.Solar**
+   it's *Modules power* (in Wp) plus *Declination* and *Azimuth*; in
+   **Solcast** it's the rooftop site you configured on their website. If
+   that number is much smaller than reality, everything downstream is too
+   small. This is by far the most common cause.
+2. **Optional damping / inverter-size limits** in the forecast integration
+   clip the curve.
+3. **Declination and azimuth.** Azimuth is 0 = South, −90 = East, +90 =
+   West. A wrong compass direction moves *and* flattens the curve.
+4. **It's just a cloudy day.** Compare a few days before concluding.
+
+To see it: build the
+[forecast vs actual card](Dashboard-charts.md#5-solar-forecast-vs-actual-production),
+watch `sensor.sems_pv_forecast` (debug mode), or use **Download
+diagnostics** — it contains the raw attributes of your forecast entity.
+
+**Why it matters.** SEMS blends the grid price with your solar using
+`coverage = forecast ÷ installed capacity`. Set the capacity to 4860 Wp
+while the forecast tops out at 1500 W and coverage never passes ~30%, so
+sunny hours only get about a third of the discount they deserve — the
+score curve flattens and the "solar advantage" in the
+[price breakdown card](Dashboard-charts.md#2-price-breakdown--what-you-pay-vs-what-it-really-costs)
+stays at a cent or two. Fix the forecast, not the capacity: the capacity
+setting should stay the honest Wp of your array.
+
 ## Which solar forecast integrations are supported?
 
 Any integration that can show a solar forecast on Home Assistant's Energy

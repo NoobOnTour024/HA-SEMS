@@ -230,6 +230,83 @@ series:
 > Using quarter-hour resolution? Rank runs 1–96; set the yaxis `max` to 96
 > and the annotation `y` to ~77.5 (top-20 blocks ≈ top-5 hours).
 
+## 5. Solar forecast vs actual production
+
+![Solar forecast vs actual](https://raw.githubusercontent.com/NoobOnTour024/HA-SEMS/main/assets/screenshots/card-pv-forecast-vs-actual.png)
+
+A **check-up card**: the orange area is the forecast SEMS is working with,
+the blue line is what your panels actually produced. They should have the
+same shape and roughly the same height; the blue line stops at *now*
+because the future hasn't happened yet.
+
+If the orange area sits structurally far below the blue line, the forecast
+is under-reporting — and because SEMS blends prices with
+`forecast ÷ installed capacity`, an under-reporting forecast quietly
+shrinks the solar advantage on sunny hours. See
+[the FAQ entry](FAQ.md#the-solar-forecast-looks-much-lower-than-what-my-panels-really-do)
+for what to check.
+
+You need **your own production sensor** for the blue line — whatever your
+inverter integration provides (SolarEdge, Enphase, Growatt, SMA, a Shelly
+EM, …). Replace `sensor.your_pv_power` below.
+
+```yaml
+type: custom:apexcharts-card
+header:
+  show: true
+  title: SEMS — solar forecast vs actual
+graph_span: 48h
+span:
+  start: day
+now:
+  show: true
+  label: now
+yaxis:
+  - id: kw
+    min: 0
+    decimals: 1
+series:
+  - entity: sensor.sems_rank
+    name: Forecast (used by SEMS)
+    unit: " kW"
+    type: area
+    yaxis_id: kw
+    color: '#eda100'
+    opacity: 0.2
+    stroke_width: 2
+    curve: smooth
+    float_precision: 2
+    data_generator: |
+      return entity.attributes.scores.map((r) => [new Date(r.start).getTime(),
+        r.pv === null ? null : r.pv / 1000]);
+  # >>> Replace with your own inverter / production power sensor <<<
+  - entity: sensor.your_pv_power
+    name: Actual production
+    unit: " kW"
+    type: line
+    yaxis_id: kw
+    color: '#2a78d6'
+    stroke_width: 2
+    curve: smooth
+    float_precision: 2
+    extend_to: now
+    group_by:
+      func: avg
+      duration: 1h
+    # Your sensor reports Watts? Keep this line. Already kW? Delete it.
+    transform: return x / 1000;
+```
+
+Two settings make this a *fair* comparison, so don't drop them:
+
+- **`group_by: avg over 1h`** — the forecast is an hourly **average**, while
+  your inverter sensor is the instantaneous power right now. Without the
+  averaging the blue line spikes far above the orange area on every sunny
+  minute and the forecast looks broken when it isn't.
+- **`extend_to: now`** — apexcharts-card otherwise repeats the last known
+  value all the way to the right edge, drawing a flat blue line across
+  tomorrow as if you were producing at night.
+
 ## Rolling 24-hour view
 
 Prefer one continuous window that always **starts at the current hour**
