@@ -253,14 +253,21 @@ card:
 
 ## Good to know
 
-- **A series in the legend says `N/A`?** The legend shows each series'
-  value *at the current moment*. `N/A` means that series has no data right
-  now — normal for a series that only covers tomorrow, before tomorrow's
-  prices are published (~13:00 CET). The cards on this page each draw one
-  continuous series that runs from today into tomorrow, so they always have
-  a value at "now". Cards from before v0.5.0 plotted a separate
-  `(today)` and `(tomorrow)` series per metric, and the tomorrow half sat
-  at `N/A` all morning — repaste the cards above to be rid of it.
+- **The number next to a series name is the series' _last_ block, not the
+  current hour.** apexcharts-card puts the final value of the plotted data
+  in the legend, so on a 48-hour card "Rank: 6" is the rank of the last
+  hour on the chart — 23:00 tomorrow. For *now*, read the entity states
+  themselves (`sensor.sems_rank`, `sensor.sems_current_price`) or hover the
+  chart for a per-hour tooltip.
+- **A series says `N/A`?** Same mechanism: the series has no last value
+  because it has no data at all. That's what happens to a series covering
+  only tomorrow before tomorrow's prices are published (~13:00 CET). Cards
+  from before v0.5.0 drew a separate `(today)` and `(tomorrow)` series per
+  metric, so every `(tomorrow)` entry read `N/A` all morning. The cards on
+  this page draw one continuous series that always contains today, so a
+  value is always there — repaste them to be rid of the `N/A`.
+  (SEMS never pads unknown blocks with `null`: unpublished blocks are
+  simply absent from `scores`, which is why the gap in the chart is honest.)
 - **`min: ~0` on a price axis** is a *soft* minimum (an apexcharts-card
   feature): the axis starts at 0, but stretches lower if the effective
   price goes negative. Without it the axis starts at the cheapest hour,

@@ -93,17 +93,32 @@ are all built on it.
 
 ## My chart legend says N/A
 
-The legend of an ApexCharts card shows each series' value **at this
-moment**, and `N/A` simply means "this series has no value right now".
+The legend of an apexcharts-card shows the **last value of each plotted
+series**, and `N/A` means that series has no values at all.
 
 Almost always you're on a card from before **v0.5.0**, which drew two
 series per metric — one named `(today)` and one `(tomorrow)`. Tomorrow's
-prices aren't published until ~13:00 CET, so every `(tomorrow)` series
-reads `N/A` for the whole morning. Nothing is broken, but it's noisy.
+prices aren't published until ~13:00 CET, so every `(tomorrow)` series is
+empty — and therefore `N/A` — for the whole morning. Nothing is broken,
+but it is noisy.
 
 The cards on [Dashboard charts](Dashboard-charts.md) now draw **one**
-series per metric that runs from today straight into tomorrow, so there's
-always a value at "now". Repaste them and the `N/A` entries disappear.
+series per metric that runs from today straight into tomorrow, so a value
+is always present. Repaste them and the `N/A` entries disappear.
+
+## The number in the chart legend doesn't match the sensor
+
+Correct, and it's not a SEMS bug: apexcharts-card shows each series' **last
+plotted value**, not the value at this moment. On a 48-hour card that's
+23:00 on the last day drawn. So a legend reading "Rank: 6" while
+`sensor.sems_rank` says 14 is consistent — 6 is tonight's last hour, 14 is
+now.
+
+Want the current numbers? Read the entities (`sensor.sems_rank`,
+`sensor.sems_current_price`, `sensor.sems_relative_score`) on a normal
+Entities card, or hover the chart for a per-hour tooltip. You can also hide
+the legend numbers entirely by adding `show: {legend_value: false}` to a
+series.
 
 ## My charts show a gap for tomorrow. Is that a bug?
 
