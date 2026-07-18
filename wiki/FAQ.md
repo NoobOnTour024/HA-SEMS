@@ -91,6 +91,20 @@ To see **all of today and tomorrow**, use the `scores` attribute of
 1–24 on its own. The [Dashboard charts](Dashboard-charts.md) page's cards
 are all built on it.
 
+## My chart legend says N/A
+
+The legend of an ApexCharts card shows each series' value **at this
+moment**, and `N/A` simply means "this series has no value right now".
+
+Almost always you're on a card from before **v0.5.0**, which drew two
+series per metric — one named `(today)` and one `(tomorrow)`. Tomorrow's
+prices aren't published until ~13:00 CET, so every `(tomorrow)` series
+reads `N/A` for the whole morning. Nothing is broken, but it's noisy.
+
+The cards on [Dashboard charts](Dashboard-charts.md) now draw **one**
+series per metric that runs from today straight into tomorrow, so there's
+always a value at "now". Repaste them and the `N/A` entries disappear.
+
 ## My charts show a gap for tomorrow. Is that a bug?
 
 No — those blocks have no published prices yet (they arrive around 13:00

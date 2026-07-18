@@ -25,10 +25,10 @@ and paste.
 
 ![Prices and rank](https://raw.githubusercontent.com/NoobOnTour024/HA-SEMS/main/assets/screenshots/card-prices-rank.png)
 
-Blue = the all-in price you pay from the grid; green = the effective price
-(what a kWh really costs you once your solar is counted, dips below zero on
-sunny days); the orange step line is the rank, peaking at 24 on each day's
-best hour.
+Two columns side by side per hour: blue = the all-in price you pay from the
+grid, green = the effective price (what a kWh really costs you once your
+solar is counted — it dips below zero on sunny days). The orange step line
+is the rank, peaking at 24 on each day's best hour.
 
 ```yaml
 type: custom:apexcharts-card
@@ -43,12 +43,17 @@ now:
   label: now
 yaxis:
   - id: price
+    min: ~0
     decimals: 2
   - id: rank
     opposite: true
     min: 0
     max: 24
     decimals: 0
+apex_config:
+  plotOptions:
+    bar:
+      columnWidth: 90%
 series:
   - entity: sensor.sems_rank
     name: All-in price
@@ -248,6 +253,18 @@ card:
 
 ## Good to know
 
+- **A series in the legend says `N/A`?** The legend shows each series'
+  value *at the current moment*. `N/A` means that series has no data right
+  now — normal for a series that only covers tomorrow, before tomorrow's
+  prices are published (~13:00 CET). The cards on this page each draw one
+  continuous series that runs from today into tomorrow, so they always have
+  a value at "now". Cards from before v0.5.0 plotted a separate
+  `(today)` and `(tomorrow)` series per metric, and the tomorrow half sat
+  at `N/A` all morning — repaste the cards above to be rid of it.
+- **`min: ~0` on a price axis** is a *soft* minimum (an apexcharts-card
+  feature): the axis starts at 0, but stretches lower if the effective
+  price goes negative. Without it the axis starts at the cheapest hour,
+  which makes cheap hours look like zero-height columns.
 - Everything refreshes at the start of each block (hour or quarter), and
   immediately when you move `number.sems_balance` — handy to see the
   effect of the slider live.
