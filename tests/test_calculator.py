@@ -488,3 +488,64 @@ def test_pv_warning_needs_something_to_compare():
     """No capacity configured or no forecast at all: nothing to say."""
     assert pv_forecast_warning(500.0, 0.0, NL, MIDSUMMER) is None
     assert pv_forecast_warning(0.0, 4860.0, NL, MIDSUMMER) is None
+
+
+# ---------------------------------------------------------------------------
+# find_pause_blocks
+# ---------------------------------------------------------------------------
+
+find_pause_blocks = calculator.find_pause_blocks
+
+ONE_DAY = [0] * 24
+
+
+def test_pause_spreads_out_a_cluster_of_bad_hours():
+    """The freezer case: the four worst hours sit back to back."""
+    scores = [float(h) for h in range(24)]  # 00:00 worst, 23:00 best
+    # Unconstrained this would be 00, 01, 02, 03 - four hours off in a row.
+    assert find_pause_blocks(scores, ONE_DAY, 4, 1) == [0, 2, 4, 6]
+
+
+def test_pause_respects_a_longer_allowed_run():
+    """max_consecutive 2 may pause in pairs, but never three deep."""
+    scores = [float(h) for h in range(24)]
+    chosen = find_pause_blocks(scores, ONE_DAY, 4, 2)
+    assert chosen == [0, 1, 3, 4]
+    runs, run = [], 0
+    for i in range(24):
+        run = run + 1 if i in chosen else 0
+        runs.append(run)
+    assert max(runs) == 2
+
+
+def test_pause_prefers_the_worst_blocks_it_can_take():
+    """With room to spare it simply takes the worst blocks."""
+    scores = [9.0] * 24
+    for hour, value in ((3, 0.0), (9, 1.0), (17, 2.0)):
+        scores[hour] = value
+    assert find_pause_blocks(scores, ONE_DAY, 3, 1) == [3, 9, 17]
+
+
+def test_pause_run_limit_holds_across_midnight():
+    """23:00 today and 00:00 tomorrow are consecutive for the appliance."""
+    scores = [10.0] * 23 + [0.0] + [0.0] + [10.0] * 23
+    days = [0] * 24 + [1] * 24
+    chosen = find_pause_blocks(scores, days, 1, 1)
+    # Index 24 is the cheapest of day 2 but touches the pause at index 23,
+    # so the second day must settle for another block.
+    assert 23 in chosen
+    assert 24 not in chosen
+    assert len(chosen) == 2
+
+
+def test_pause_counts_per_day_not_overall():
+    scores = [float(i) for i in range(48)]
+    days = [0] * 24 + [1] * 24
+    chosen = find_pause_blocks(scores, days, 2, 1)
+    assert len([i for i in chosen if i < 24]) == 2
+    assert len([i for i in chosen if i >= 24]) == 2
+
+
+def test_pause_disabled_returns_nothing():
+    assert find_pause_blocks([1.0, 2.0, 3.0], [0, 0, 0], 0, 1) == []
+    assert find_pause_blocks([], [], 4, 1) == []

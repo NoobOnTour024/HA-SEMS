@@ -46,6 +46,7 @@ from homeassistant.util import dt as dt_util
 from .calculator import (
     compute_scores,
     find_best_block,
+    find_pause_blocks,
     pv_forecast_warning,
     to_all_in_price,
     to_raw_price,
@@ -56,6 +57,8 @@ from .const import (
     CONF_EXPORT_FEE,
     CONF_PRICE_ENTITY,
     CONF_PRICE_FREE_THRESHOLD,
+    CONF_PAUSE_HOURS,
+    CONF_PAUSE_MAX_CONSECUTIVE_HOURS,
     CONF_PRICE_TYPE,
     CONF_PV_CAPACITY,
     CONF_PV_FORECAST_ENTITY,
@@ -65,6 +68,8 @@ from .const import (
     DEFAULT_BALANCE,
     DEFAULT_ENERGY_TAX,
     DEFAULT_EXPORT_FEE,
+    DEFAULT_PAUSE_HOURS,
+    DEFAULT_PAUSE_MAX_CONSECUTIVE_HOURS,
     DEFAULT_PRICE_FREE_THRESHOLD,
     DEFAULT_PRICE_TYPE,
     DEFAULT_PV_CAPACITY,
@@ -666,6 +671,50 @@ class SemsCoordinator(DataUpdateCoordinator[dict]):
         )
         today_hours = len(today_scores) / blocks_per_hour
 
+        # ---- 6c. The pause plan (for devices to switch OFF) ----
+        # Today and tomorrow are laid end to end on purpose: a pause at
+        # 23:00 and one at 00:00 are consecutive for the appliance even
+        # though they belong to two different daily rankings. Measuring the
+        # runs over the joined list is what keeps the guarantee true across
+        # midnight.
+        pause_hours = int(self._conf(CONF_PAUSE_HOURS, DEFAULT_PAUSE_HOURS))
+        pause_max_hours = int(
+            self._conf(
+                CONF_PAUSE_MAX_CONSECUTIVE_HOURS,
+                DEFAULT_PAUSE_MAX_CONSECUTIVE_HOURS,
+            )
+        )
+        pause_pool = today_scores + tomorrow_scores
+        pause_indices = find_pause_blocks(
+            [s["score"] for s in pause_pool],
+            [0] * len(today_scores) + [1] * len(tomorrow_scores),
+            pause_hours * blocks_per_hour,
+            pause_max_hours * blocks_per_hour,
+        )
+        pause_today = [
+            pause_pool[i]["start"] for i in pause_indices if i < len(today_scores)
+        ]
+        pause_tomorrow = [
+            pause_pool[i]["start"] for i in pause_indices if i >= len(today_scores)
+        ]
+        # Compare as datetimes, not as strings: around a DST change the UTC
+        # offset in the timestamp changes and string order stops matching
+        # chronological order.
+        current_start = dt_util.parse_datetime(current["start"])
+        pause_all = pause_today + pause_tomorrow
+        pause_parsed = [(s, dt_util.parse_datetime(s)) for s in pause_all]
+        pause_plan = {
+            "enabled": pause_hours > 0,
+            "hours_per_day": pause_hours,
+            "max_consecutive_hours": pause_max_hours,
+            "now": any(parsed == current_start for _, parsed in pause_parsed),
+            "today": pause_today,
+            "tomorrow": pause_tomorrow,
+            "next": next(
+                (s for s, parsed in pause_parsed if parsed > current_start), None
+            ),
+        }
+
         # ---- 7. Package everything for the entities ----
         return {
             "scores": scores,
@@ -679,6 +728,7 @@ class SemsCoordinator(DataUpdateCoordinator[dict]):
             "blocks_per_hour": blocks_per_hour,
             "block_minutes": block_minutes,
             "best_blocks": best_blocks,
+            "pause": pause_plan,
             # The free-power flag is deliberately derived from the all-in
             # price itself, NOT from the score.
             "free_power": current["price"] < self.free_threshold,

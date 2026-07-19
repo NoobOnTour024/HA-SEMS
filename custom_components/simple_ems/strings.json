@@ -22,6 +22,8 @@
           "export_fee": "Export fee (feed-in costs)",
           "pv_capacity": "Solar installation size (0 = automatic)",
           "price_free_threshold": "Free power threshold (all-in price)",
+          "pause_hours": "Pause hours per day (0 = off)",
+          "pause_max_consecutive_hours": "Longest pause allowed in a row",
           "debug_mode": "Debug mode (extra diagnostics sensor)"
         },
         "data_description": {
@@ -30,6 +32,8 @@
           "export_fee": "What your supplier charges per exported kWh ('terugleverkosten'). Enter as a positive number — SEMS subtracts it from the market price to calculate what exporting earns.",
           "pv_capacity": "Total rated power of your panels in Watts, e.g. 12 panels × 405 Wp = 4860. Used to estimate how much of your consumption your own solar power covers per hour. Real output rarely reaches this rated maximum and that is fine — it makes the estimate slightly conservative. 0 = automatic: assume the sunniest hour of the day covers your consumption.",
           "price_free_threshold": "Below this all-in price, power counts as free: the score goes above 100 and the free-power sensor turns on.",
+          "pause_hours": "Marks the worst hours of each day for switching a device OFF - a freezer, a boiler - via binary_sensor.sems_pause_now. 0 keeps that sensor off. Expensive hours cluster, so SEMS does not simply take the worst hours in a row; it spreads them using the limit below.",
+          "pause_max_consecutive_hours": "How long the device may stay off in one stretch. 1 hour means every pause is followed by at least an hour on, so a freezer never thaws. The limit also holds across midnight. Costs almost nothing: on real price curves spreading the pauses gives up well under a percent versus taking the worst hours back to back.",
           "debug_mode": "Adds sensor.sems_diagnostics showing exactly what data SEMS found, so you can verify everything works. Turn off once you trust the numbers."
         }
       },
@@ -59,6 +63,8 @@
           "export_fee": "Export fee (feed-in costs)",
           "pv_capacity": "Solar installation size (0 = automatic)",
           "price_free_threshold": "Free power threshold (all-in price)",
+          "pause_hours": "Pause hours per day (0 = off)",
+          "pause_max_consecutive_hours": "Longest pause allowed in a row",
           "debug_mode": "Debug mode (extra diagnostics sensor)"
         },
         "data_description": {
@@ -67,6 +73,8 @@
           "export_fee": "What your supplier charges per exported kWh ('terugleverkosten'). Enter as a positive number — SEMS subtracts it from the market price to calculate what exporting earns.",
           "pv_capacity": "Total rated power of your panels in Watts, e.g. 12 panels × 405 Wp = 4860. Used to estimate how much of your consumption your own solar power covers per hour. Real output rarely reaches this rated maximum and that is fine — it makes the estimate slightly conservative. 0 = automatic: assume the sunniest hour of the day covers your consumption.",
           "price_free_threshold": "Below this all-in price, power counts as free: the score goes above 100 and the free-power sensor turns on.",
+          "pause_hours": "Marks the worst hours of each day for switching a device OFF - a freezer, a boiler - via binary_sensor.sems_pause_now. 0 keeps that sensor off. Expensive hours cluster, so SEMS does not simply take the worst hours in a row; it spreads them using the limit below.",
+          "pause_max_consecutive_hours": "How long the device may stay off in one stretch. 1 hour means every pause is followed by at least an hour on, so a freezer never thaws. The limit also holds across midnight. Costs almost nothing: on real price curves spreading the pauses gives up well under a percent versus taking the worst hours back to back.",
           "debug_mode": "Adds sensor.sems_diagnostics showing exactly what data SEMS found, so you can verify everything works. Turn off once you trust the numbers."
         }
       },

@@ -123,6 +123,34 @@ this value, power counts as free: the score jumps above 100 and
 `binary_sensor.sems_free_power` switches ON. Leave it at 0.00 unless you
 want to be more or less strict about what "free" means.
 
+### Pause hours per day (0 = off)
+
+Default **0**, which means off. Set it to 4 and SEMS marks the four worst
+hours of each day on `binary_sensor.sems_pause_now` — a signal for devices
+you want to switch **off** during expensive hours: a freezer, a boiler, a
+circulation pump.
+
+### Longest pause allowed in a row
+
+Default **1 hour**. This is the setting that makes the feature safe.
+
+Expensive hours cluster, so "the four worst hours of the day" is regularly
+one unbroken evening block. A real example: on 18 July the four worst hours
+were 22:00, 23:00, 00:00 and 01:00 — four hours in a row, long enough for a
+freezer to start thawing.
+
+With the limit at 1 hour, SEMS picks 00:00, 02:00, 04:00 and 22:00 instead:
+still four hours off, still the expensive end of the day, but never two in
+a row. **The limit also holds across midnight**, so today's 23:00 and
+tomorrow's 00:00 are never both chosen.
+
+It costs almost nothing. On that same day the spread-out set gave up 1.8
+cent against the unbroken one — **1.4%** — because the fifth-worst hour is
+barely cheaper than the fourth.
+
+Set it to 2 if your appliance tolerates a longer pause; you'll claw back
+that fraction of a percent.
+
 ### Debug mode
 
 ON by default after installation. Adds `sensor.sems_diagnostics`, which

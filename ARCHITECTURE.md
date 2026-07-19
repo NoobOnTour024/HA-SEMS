@@ -197,6 +197,20 @@ Always present:
 - `binary_sensor.sems_best_2h_block` / `_3h_block` / `_4h_block` — ON when
   the best consecutive run of that length starts now. Attrs:
   `planned_start`, `planned_end`, `average_score`.
+- `binary_sensor.sems_pause_now` (v0.7.0) — the inverse: ON during the
+  worst blocks of the day, for devices to switch **off**. Driven by
+  `calculator.find_pause_blocks` and two options (`pause_hours`,
+  `pause_max_consecutive_hours`, both in HOURS so the guarantee survives a
+  resolution change); 0 hours = off, which is the default. Greedy: walk
+  blocks worst-score-first, take one unless it would make a paused run
+  longer than the limit. Today and tomorrow are scored end to end so a run
+  crossing midnight counts as one run, while the per-day quota still comes
+  from each day's own ranking. Rationale: expensive hours cluster, so the
+  naive "N worst blocks" is regularly one unbroken evening block — a
+  freezer thaws. The constraint is near-free (measured 1.4% of the skipped
+  price on a real day). Greedy is not an exhaustive optimum and at extreme
+  settings may return fewer than requested; the entity publishes what it
+  actually got.
 - `number.sems_balance` — 0–100 slider (default 50). Survives restarts;
   recomputes on change.
 

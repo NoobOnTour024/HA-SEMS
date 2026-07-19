@@ -101,6 +101,48 @@ automation:
           entity_id: switch.ev_charger
 ```
 
+## 5. Pause the freezer during the worst hours
+
+A freezer doesn't need to run 24 hours a day — but it must never be off
+long enough to thaw. That's what `binary_sensor.sems_pause_now` is for.
+
+First set it up once: **Configure → Pause hours per day = 4**, and
+**Longest pause allowed in a row = 1**. SEMS then picks the four worst
+hours of each day, never two back to back, midnight included.
+
+```yaml
+automation:
+  - alias: "Freezer follows SEMS"
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.sems_pause_now
+    action:
+      - choose:
+          - conditions:
+              - condition: state
+                entity_id: binary_sensor.sems_pause_now
+                state: "on"
+            sequence:
+              - action: switch.turn_off
+                target:
+                  entity_id: switch.freezer
+        default:
+          - action: switch.turn_on
+            target:
+              entity_id: switch.freezer
+```
+
+Want to see the plan before trusting it? The sensor's `pauses_today` and
+`pauses_tomorrow` attributes list the exact hours, and `next_pause` gives
+the next one.
+
+> **A freezer is a thermostat, not a duty-cycle device.** You are not
+> removing the consumption, you are moving it: after a pause the compressor
+> runs a little longer to catch up. The saving is smaller than "4 of 24
+> hours" suggests — but it is real, because you shift compressor time from
+> the day's dearest hours to its cheapest. Same idea for a boiler or a
+> pool pump.
+
 ## Notes for automation builders
 
 - **Rank is per calendar day.** Since v0.4.0 `sensor.sems_rank` ranks the

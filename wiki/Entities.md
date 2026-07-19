@@ -179,6 +179,30 @@ The 0–100 slider that defines what a "good hour" means:
 
 Changes take effect immediately and survive restarts.
 
+## `binary_sensor.sems_pause_now`
+
+The mirror image of the best-block sensors: those say "start now", this one
+says **"switch off now"**. For devices where the win is skipping the
+expensive hours rather than catching the cheap ones — a freezer, a boiler,
+a circulation pump.
+
+OFF until you set **Pause hours per day** in
+[Configuration](Configuration.md). Then it turns ON during the worst hours
+of each day, spread out so the device is never off longer than the limit
+you set — across midnight too.
+
+| Attribute | Meaning |
+|---|---|
+| `enabled` | False while pause hours is 0. |
+| `hours_per_day` | How many hours are marked per day. |
+| `max_consecutive_hours` | The longest unbroken pause allowed. |
+| `next_pause` | Start of the next planned pause. |
+| `pauses_today` / `pauses_tomorrow` | The full plan, as timestamps. |
+
+Why this lives in SEMS instead of a template: taking "the N worst hours"
+naively gives you one long block, because expensive hours cluster. See
+[Example automations](Example-automations.md#5-pause-the-freezer-during-the-worst-hours).
+
 ## `sensor.sems_diagnostics` (debug mode only)
 
 A **temporary verification aid**, created only while debug mode is enabled

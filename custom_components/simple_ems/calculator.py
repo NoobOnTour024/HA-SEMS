@@ -282,6 +282,72 @@ def compute_scores(
     return results
 
 
+def find_pause_blocks(
+    scores: list[float],
+    days: list[int],
+    per_day: int,
+    max_consecutive: int,
+) -> list[int]:
+    """Pick the worst blocks of each day, never too many back to back.
+
+    For devices you want to switch OFF during the worst hours — a freezer,
+    a boiler — where a long unbroken pause is the thing to avoid. Simply
+    taking the N worst blocks does not work: expensive hours cluster, so
+    "the four worst hours" is regularly one four-hour evening block, and
+    the freezer thaws.
+
+    The rule instead: walk the blocks worst-score-first and take each one
+    unless taking it would make a run of paused blocks longer than
+    ``max_consecutive``. That keeps the pauses on the genuinely bad blocks
+    while forcing gaps between them.
+
+    ``days`` labels each block with the calendar day it belongs to, and
+    ``per_day`` blocks are chosen for each label. Runs are measured over
+    the whole list regardless of that label, so a pause at 23:00 and one
+    at 00:00 correctly count as two in a row — the freezer does not care
+    about the date.
+
+    This is greedy, not an exhaustive optimum: it can leave a marginally
+    better combination on the table, and at extreme settings (pausing
+    nearly half of every day with no two in a row) it may find fewer than
+    ``per_day`` blocks. Both are deliberate — the caller publishes the
+    blocks it actually got, and on real price curves the greedy result
+    costs a fraction of a percent versus the unconstrained pick.
+
+    Returns the chosen indices into ``scores``, in chronological order.
+    """
+    if per_day <= 0 or not scores:
+        return []
+    max_consecutive = max(1, max_consecutive)
+    n = min(len(scores), len(days))
+    chosen: set[int] = set()
+    taken: dict[int, int] = {}
+
+    # Worst score first: those are the blocks worth skipping most.
+    for index in sorted(range(n), key=lambda i: scores[i]):
+        day = days[index]
+        if taken.get(day, 0) >= per_day:
+            continue
+        # Measure the run this block would end up in, by walking outwards
+        # over blocks that are already chosen. Adding a block can join a
+        # run on its left to one on its right, so both sides count.
+        run = 1
+        left = index - 1
+        while left >= 0 and left in chosen:
+            run += 1
+            left -= 1
+        right = index + 1
+        while right < n and right in chosen:
+            run += 1
+            right += 1
+        if run > max_consecutive:
+            continue
+        chosen.add(index)
+        taken[day] = taken.get(day, 0) + 1
+
+    return sorted(chosen)
+
+
 def max_solar_elevation(latitude: float, day_of_year: int) -> float:
     """Return how high the sun climbs at noon on this day, in degrees.
 

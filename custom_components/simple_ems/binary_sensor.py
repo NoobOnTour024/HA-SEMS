@@ -9,6 +9,10 @@
   (dishwasher, washing machine): trigger the automation when the sensor
   turns ON. The attributes always show when the best run is planned, so
   you can also automate on the start time directly.
+* ``binary_sensor.sems_pause_now`` — the mirror image: ON during the worst
+  blocks of the day, for devices you want to switch OFF rather than on.
+  The pauses are deliberately spread out, so a freezer is never left off
+  long enough to thaw. Off unless you set "pause hours per day".
 """
 
 from __future__ import annotations
@@ -36,6 +40,7 @@ async def async_setup_entry(
     ]
     for duration_hours in BLOCK_DURATIONS_HOURS:
         entities.append(SemsBestBlockBinarySensor(coordinator, entry, duration_hours))
+    entities.append(SemsPauseBinarySensor(coordinator, entry))
     async_add_entities(entities)
 
 
@@ -113,4 +118,46 @@ class SemsBestBlockBinarySensor(SemsBinarySensorBase):
             "planned_start": block["start"],
             "planned_end": block["end"],
             "average_score": block["average_score"],
+        }
+
+
+class SemsPauseBinarySensor(SemsBinarySensorBase):
+    """ON during the worst blocks of the day — time to switch a device OFF.
+
+    The counterpart of the best-block sensors. Those say "start now"; this
+    one says "pause now", for the appliances where the win is skipping the
+    expensive hours rather than picking the cheap ones: a freezer, a
+    boiler, a circulation pump.
+
+    The point of doing this in SEMS instead of a template is the spacing.
+    Expensive hours cluster, so "the four worst hours of the day" is
+    regularly one unbroken evening block — long enough for a freezer to
+    thaw. SEMS picks the worst blocks it can while keeping every pause
+    shorter than the limit you set, including across midnight.
+
+    Stays OFF until you set "pause hours per day" in the options. The
+    attributes always show the full plan, so you can also automate on the
+    planned times instead of on this sensor flipping.
+    """
+
+    _attr_name = "Pause now"
+    _attr_icon = "mdi:pause-octagon-outline"
+
+    def __init__(self, coordinator: SemsCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator, entry, "pause_now")
+
+    @property
+    def is_on(self) -> bool:
+        return bool(self.coordinator.data["pause"]["now"])
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        plan = self.coordinator.data["pause"]
+        return {
+            "enabled": plan["enabled"],
+            "hours_per_day": plan["hours_per_day"],
+            "max_consecutive_hours": plan["max_consecutive_hours"],
+            "next_pause": plan["next"],
+            "pauses_today": plan["today"],
+            "pauses_tomorrow": plan["tomorrow"],
         }

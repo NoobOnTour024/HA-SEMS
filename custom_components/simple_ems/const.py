@@ -55,6 +55,16 @@ CONF_RESOLUTION = "resolution"
 RESOLUTION_HOUR = "hour"
 RESOLUTION_QUARTER = "quarter_hour"
 
+# The optional "pause plan", for devices you want to switch OFF during the
+# worst blocks of the day. Expensive hours cluster, so the naive "four
+# worst hours" is regularly one unbroken four-hour evening block — which
+# would let a freezer thaw. SEMS therefore spreads the pauses out.
+#
+# Both are expressed in HOURS, not blocks, so the guarantee means the same
+# thing whether you plan in hour or quarter-hour blocks.
+CONF_PAUSE_HOURS = "pause_hours"  # per day; 0 disables the feature
+CONF_PAUSE_MAX_CONSECUTIVE_HOURS = "pause_max_consecutive_hours"
+
 # Temporary verification aid: when enabled, SEMS creates a diagnostics
 # sensor plus separate source-price / effective-price / PV-forecast sensors
 # that show exactly what data SEMS found and computed.
@@ -74,6 +84,8 @@ DEFAULT_EXPORT_FEE = 0.020  # €/kWh, typical Dutch feed-in fee ("terugleverkos
 DEFAULT_PV_CAPACITY = 0  # W-peak; 0 = unknown (normalise on the day's sunniest hour)
 DEFAULT_BALANCE = 50  # slider midpoint: price and PV matter equally
 DEFAULT_RESOLUTION = RESOLUTION_HOUR
+DEFAULT_PAUSE_HOURS = 0  # feature off: no blocks are marked for pausing
+DEFAULT_PAUSE_MAX_CONSECUTIVE_HOURS = 1  # never off two hours in a row
 DEFAULT_DEBUG_MODE = True  # temporarily ON so non-developers can verify the setup
 
 # ---------------------------------------------------------------------------

@@ -42,6 +42,8 @@ from .const import (
     CONF_DEBUG_MODE,
     CONF_ENERGY_TAX,
     CONF_EXPORT_FEE,
+    CONF_PAUSE_HOURS,
+    CONF_PAUSE_MAX_CONSECUTIVE_HOURS,
     CONF_PRICE_ENTITY,
     CONF_PRICE_FREE_THRESHOLD,
     CONF_PRICE_TYPE,
@@ -53,6 +55,8 @@ from .const import (
     DEFAULT_DEBUG_MODE,
     DEFAULT_ENERGY_TAX,
     DEFAULT_EXPORT_FEE,
+    DEFAULT_PAUSE_HOURS,
+    DEFAULT_PAUSE_MAX_CONSECUTIVE_HOURS,
     DEFAULT_PRICE_FREE_THRESHOLD,
     DEFAULT_PRICE_TYPE,
     DEFAULT_PV_CAPACITY,
@@ -119,6 +123,29 @@ def _settings_schema(current: dict[str, Any]) -> vol.Schema:
                 NumberSelectorConfig(
                     min=-1, max=1, step="any", mode=NumberSelectorMode.BOX,
                     unit_of_measurement="€/kWh",
+                )
+            ),
+            # The pause plan. 0 hours keeps binary_sensor.sems_pause_now
+            # permanently off, which is the default: it is opt-in.
+            vol.Required(
+                CONF_PAUSE_HOURS,
+                default=current.get(CONF_PAUSE_HOURS, DEFAULT_PAUSE_HOURS),
+            ): NumberSelector(
+                NumberSelectorConfig(
+                    min=0, max=12, step=1, mode=NumberSelectorMode.BOX,
+                    unit_of_measurement="h",
+                )
+            ),
+            vol.Required(
+                CONF_PAUSE_MAX_CONSECUTIVE_HOURS,
+                default=current.get(
+                    CONF_PAUSE_MAX_CONSECUTIVE_HOURS,
+                    DEFAULT_PAUSE_MAX_CONSECUTIVE_HOURS,
+                ),
+            ): NumberSelector(
+                NumberSelectorConfig(
+                    min=1, max=6, step=1, mode=NumberSelectorMode.BOX,
+                    unit_of_measurement="h",
                 )
             ),
             vol.Required(
