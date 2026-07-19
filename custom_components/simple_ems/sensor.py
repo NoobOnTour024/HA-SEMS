@@ -325,13 +325,26 @@ class SemsDiagnosticsSensor(SemsSensorBase):
     @property
     def native_value(self) -> str:
         data = self.coordinator.data
-        pv_peak = max(data["pv_watts"]) if data["pv_watts"] else 0.0
-        if pv_peak > 0:
-            pv_note = f"PV forecast found (peak {pv_peak:.0f} W)"
-        else:
+        # Peak over the whole known forecast rather than the current window,
+        # which is all zeroes at night and would read as "no PV data".
+        pv_peak = data["pv_peak_watts"]
+        ratio = data["pv_peak_ratio"]
+        if pv_peak <= 0:
             pv_note = "no PV data (treated as 0 W)"
-        # The sanity check guards against a price-type/entity mismatch;
-        # its full explanation is in the sanity_check attribute.
+        elif ratio is None:
+            pv_note = f"PV forecast peaks at {pv_peak:.0f} W"
+        else:
+            # Stating the peak as a share of the configured capacity makes a
+            # misconfigured forecast integration visible at a glance: solar
+            # coverage is forecast / capacity, so a forecast stuck at a
+            # fraction of the array quietly flattens every score.
+            pv_note = (
+                f"PV forecast peaks at {pv_peak:.0f} W "
+                f"({ratio * 100:.0f}% of capacity)"
+            )
+        # The sanity check guards against a price-type/entity mismatch and
+        # an implausibly low solar forecast; the full explanation is in the
+        # sanity_check attribute.
         prefix = "OK" if data["sanity_check"] == "OK" else "CHECK SETTINGS"
         return f"{prefix} - {data['hours_available']}h of prices, {pv_note}"
 
@@ -360,6 +373,12 @@ class SemsDiagnosticsSensor(SemsSensorBase):
             "price_type": data["price_type"],
             "sanity_check": data["sanity_check"],
             "pv_capacity": data["pv_capacity"],
+            "pv_peak_watts": round(data["pv_peak_watts"]),
+            "pv_peak_percent_of_capacity": (
+                None
+                if data["pv_peak_ratio"] is None
+                else round(data["pv_peak_ratio"] * 100, 1)
+            ),
             "hours_available": data["hours_available"],
             "block_minutes": data["block_minutes"],
             "balance": data["balance"],

@@ -184,13 +184,23 @@ Changes take effect immediately and survive restarts.
 A **temporary verification aid**, created only while debug mode is enabled
 in the options. The state is a plain-language health message, e.g.:
 
-> `OK - 24h of prices, PV forecast found (peak 4600 W)`
+> `OK - 24h of prices, PV forecast peaks at 4600 W (95% of capacity)`
 
-The attributes show where the data came from (`price_source`, `pv_source`)
-and an `hourly_overview`: one row per hour with the PV forecast, the raw
-market price, the all-in price, the export price, the effective price, the
-score and the rank. If a number ever looks off, this is where you check
-what SEMS is actually working with — see
+That percentage is worth a glance. Solar coverage is
+`forecast ÷ installed capacity`, so if the forecast never gets near your
+array, sunny hours quietly lose most of their discount and every score
+flattens. A healthy summer figure is 60–90%; a dull winter day is
+legitimately far lower. When it drops to a level the sun cannot explain
+for the time of year, the state changes to `CHECK SETTINGS` and
+`sanity_check` says what to look at — see
+[the FAQ](FAQ.md#the-solar-forecast-looks-much-lower-than-what-my-panels-really-do).
+
+The other attributes show where the data came from (`price_source`,
+`pv_source`), the peak itself (`pv_peak_watts`,
+`pv_peak_percent_of_capacity`), and an `hourly_overview`: one row per hour
+with the PV forecast, the raw market price, the all-in price, the export
+price, the effective price, the score and the rank. If a number ever looks
+off, this is where you check what SEMS is actually working with — see
 [Check that it works](Check-that-it-works.md).
 
 Turn debug mode off via **Configure** once you trust the numbers — the

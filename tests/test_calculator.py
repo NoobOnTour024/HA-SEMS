@@ -438,3 +438,53 @@ def test_find_best_block_too_long_returns_none():
     assert find_best_block([10.0, 20.0], 3) is None
     assert find_best_block([], 1) is None
     assert find_best_block([10.0], 0) is None
+
+
+# ---------------------------------------------------------------------------
+# max_solar_elevation / pv_forecast_warning
+# ---------------------------------------------------------------------------
+
+max_solar_elevation = calculator.max_solar_elevation
+pv_forecast_warning = calculator.pv_forecast_warning
+
+# Day-of-year shorthands for a non-leap year.
+MIDSUMMER = 172  # 21 June
+MIDWINTER = 355  # 21 December
+NL = 52.09  # the test rig's latitude
+
+
+def test_max_solar_elevation_matches_the_solstices():
+    """At 52 N the sun tops out near 61 degrees in June, 14 in December."""
+    assert max_solar_elevation(NL, MIDSUMMER) == pytest.approx(61.3, abs=1.0)
+    assert max_solar_elevation(NL, MIDWINTER) == pytest.approx(14.5, abs=1.0)
+
+
+def test_max_solar_elevation_never_leaves_the_horizon_range():
+    """Polar latitudes clamp to 0 instead of going negative."""
+    assert max_solar_elevation(89.0, MIDWINTER) == 0.0
+    assert 0.0 <= max_solar_elevation(0.0, MIDSUMMER) <= 90.0
+
+
+def test_pv_warning_fires_on_a_grossly_low_summer_forecast():
+    """300 W from a 4860 Wp array in June cannot be explained by weather."""
+    warning = pv_forecast_warning(300.0, 4860.0, NL, MIDSUMMER)
+    assert warning is not None
+    assert "6%" in warning
+
+
+def test_pv_warning_silent_on_an_overcast_summer_day():
+    """A real overcast day still reaches 10-15% of nameplate: no alarm."""
+    assert pv_forecast_warning(700.0, 4860.0, NL, MIDSUMMER) is None
+
+
+def test_pv_warning_silent_on_a_normal_winter_forecast():
+    """The same 700 W is unremarkable in December, and must not warn."""
+    assert pv_forecast_warning(700.0, 4860.0, NL, MIDWINTER) is None
+    # The winter floor is low, but not zero - a near-dead forecast still fires.
+    assert pv_forecast_warning(20.0, 4860.0, NL, MIDWINTER) is not None
+
+
+def test_pv_warning_needs_something_to_compare():
+    """No capacity configured or no forecast at all: nothing to say."""
+    assert pv_forecast_warning(500.0, 0.0, NL, MIDSUMMER) is None
+    assert pv_forecast_warning(0.0, 4860.0, NL, MIDSUMMER) is None

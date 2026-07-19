@@ -43,7 +43,13 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from homeassistant.loader import async_get_integration
 from homeassistant.util import dt as dt_util
 
-from .calculator import compute_scores, find_best_block, to_all_in_price, to_raw_price
+from .calculator import (
+    compute_scores,
+    find_best_block,
+    pv_forecast_warning,
+    to_all_in_price,
+    to_raw_price,
+)
 from .const import (
     BLOCK_DURATIONS_HOURS,
     CONF_ENERGY_TAX,
@@ -528,6 +534,30 @@ class SemsCoordinator(DataUpdateCoordinator[dict]):
 
         # ---- 5. Compute the scores (pure function, unit-tested) ----
         pv_capacity = float(self._conf(CONF_PV_CAPACITY, DEFAULT_PV_CAPACITY))
+
+        # Plausibility check on the PV side, the twin of the price check
+        # above. Deliberately measured over EVERY known forecast block
+        # (today and tomorrow), not over the current window: the window is
+        # all zeroes at night, which would make the peak look broken every
+        # evening. The ratio is published even when no warning fires, so a
+        # user can see at a glance how much of their array the forecast
+        # actually expects to use.
+        pv_peak_watts = max(hourly_pv.values(), default=0.0)
+        pv_peak_ratio = (
+            pv_peak_watts / pv_capacity if pv_capacity > 0 and hourly_pv else None
+        )
+        pv_warning = pv_forecast_warning(
+            pv_peak_watts,
+            pv_capacity,
+            float(self.hass.config.latitude),
+            dt_util.now().timetuple().tm_yday,
+        )
+        if pv_warning:
+            # Keep a price warning too — both can be wrong at once.
+            sanity_check = (
+                pv_warning if sanity_check == "OK" else f"{sanity_check} {pv_warning}"
+            )
+
         scores = compute_scores(
             all_in_prices,
             export_prices,
@@ -659,6 +689,8 @@ class SemsCoordinator(DataUpdateCoordinator[dict]):
             "price_type": price_type,
             "pv_capacity": pv_capacity,
             "sanity_check": sanity_check,
+            "pv_peak_watts": pv_peak_watts,
+            "pv_peak_ratio": pv_peak_ratio,
             "source_prices": [round(p, 5) for p in source_prices],
             "raw_prices": [round(p, 5) for p in raw_prices],
             "all_in_prices": [round(p, 5) for p in all_in_prices],

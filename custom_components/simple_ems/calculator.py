@@ -38,6 +38,8 @@ The core idea of the scoring (the "effective price" model):
 
 from __future__ import annotations
 
+import math
+
 
 def to_all_in_price(
     raw_price: float,
@@ -278,3 +280,64 @@ def compute_scores(
             r["relative_score"] = (r["score"] - score_min) / (score_max - score_min) * 100
 
     return results
+
+
+def max_solar_elevation(latitude: float, day_of_year: int) -> float:
+    """Return how high the sun climbs at noon on this day, in degrees.
+
+    Plain astronomy, no dependencies. The sun's declination swings between
+    -23.44 and +23.44 degrees over the year, and at solar noon its height
+    above the horizon is ``90 - |latitude - declination|``. Accurate to
+    about a degree, which is far more than the check below needs.
+
+    This exists to make ``pv_forecast_warning`` season-aware: a peak of
+    800 W from a 5000 Wp array is obviously wrong in June and completely
+    normal in December.
+    """
+    declination = 23.44 * math.sin(math.radians(360 / 365 * (day_of_year - 81)))
+    return max(0.0, min(90.0, 90.0 - abs(latitude - declination)))
+
+
+def pv_forecast_warning(
+    peak_watts: float,
+    pv_capacity: float,
+    latitude: float,
+    day_of_year: int,
+) -> str | None:
+    """Flag a solar forecast that is impossibly low for the installed Wp.
+
+    SEMS never generates the forecast — it copies the numbers out of the
+    forecast entity the user picked. When that integration is misconfigured
+    (its own modules-power setting, a wrong azimuth) the forecast comes out
+    a fraction of reality. Because solar coverage is
+    ``forecast / pv_capacity``, the effective price then quietly loses most
+    of its solar discount: nothing looks broken, the scores just go flat.
+
+    The check is deliberately blunt. A genuinely overcast day produces
+    10-15% of nameplate, so any threshold sharp enough to catch every
+    misconfiguration would also cry wolf through every grey week. This one
+    only catches GROSS mismatches; the exact ratio is published separately
+    (``pv_peak_ratio``) so borderline cases stay visible without an alarm.
+
+    Returns the warning text, or None when the forecast is plausible or
+    there is nothing to compare it against.
+    """
+    # No capacity configured means coverage falls back to the day's sunniest
+    # block, and no forecast means there is nothing to judge.
+    if pv_capacity <= 0 or peak_watts <= 0:
+        return None
+
+    ratio = peak_watts / pv_capacity
+    # A clear-sky array peaks at roughly 70-80% of nameplate with the sun
+    # high, and proportionally less when it stays low. Scaling the floor
+    # with the sine of the noon elevation makes one rule work all year: at
+    # 52 degrees north it lands near 10% in July and near 3% in December.
+    clear_sky = math.sin(math.radians(max_solar_elevation(latitude, day_of_year)))
+    if ratio >= 0.12 * clear_sky:
+        return None
+    return (
+        f"The solar forecast peaks at {ratio * 100:.0f}% of the "
+        f"{pv_capacity:.0f} Wp you configured, which is too little to be "
+        "weather. Check the modules power, azimuth and declination in your "
+        "solar forecast integration - SEMS copies its numbers unchanged."
+    )

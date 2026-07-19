@@ -107,6 +107,19 @@ No PV entity → all PV treated as 0; SEMS becomes a pure price optimiser.
   implausible for the chosen type (all-in < €0.10, or raw giving > €0.45
   all-in), the diagnostics state becomes `CHECK SETTINGS …`. Guards against
   picking the wrong sensor of integrations like Frank Energie.
+- Since v0.6.0 there is a **twin check on the PV side**
+  (`calculator.pv_forecast_warning`). A misconfigured forecast integration
+  (its own modules-power setting, a wrong azimuth) yields a forecast that is
+  a fraction of reality; since coverage is `forecast / pv_capacity`, the
+  solar discount silently disappears and the scores just go flat. The check
+  compares the peak over **all known forecast blocks** (not the current
+  window — that is all zeroes at night) against `0.12 × sin(noon solar
+  elevation)`, using `calculator.max_solar_elevation` so one rule works in
+  June and December. It is deliberately blunt: overcast days really do
+  produce 10-15% of nameplate, so a threshold sharp enough to catch every
+  misconfiguration would cry wolf every grey week. Borderline cases are
+  surfaced instead of alarmed — the diagnostics state always names the peak
+  and its share of capacity (`pv_peak_watts`, `pv_peak_ratio`).
 
 ## 7. The scoring algorithm — the "effective price" model
 
@@ -189,9 +202,10 @@ Always present:
 
 Debug mode (`debug_mode`, default ON so non-developers can verify):
 
-- `sensor.sems_diagnostics` — plain-language health string + `hourly_overview`
+- `sensor.sems_diagnostics` — plain-language health string (including the
+  forecast peak as a share of the configured capacity) + `hourly_overview`
   (per-block raw/all-in/export/effective price, pv, score, rank), sources,
-  `sanity_check`.
+  `sanity_check`, `pv_peak_watts`, `pv_peak_percent_of_capacity`.
 - `sensor.sems_source_price` / `sems_effective_price` / `sems_pv_forecast` —
   one series each (state = current block, `series` attribute = per block).
 

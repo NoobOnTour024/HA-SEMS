@@ -230,7 +230,16 @@ roof, something upstream is off. Check, in this order:
    West. A wrong compass direction moves *and* flattens the curve.
 4. **It's just a cloudy day.** Compare a few days before concluding.
 
-To see it: build the
+**SEMS tells you this itself since v0.6.0.** The diagnostics sensor states
+the peak as a share of your configured capacity —
+`PV forecast peaks at 4600 W (95% of capacity)` — and switches to
+`CHECK SETTINGS` when that share is too low for the time of year. The
+threshold scales with how high the sun actually gets, so it stays quiet
+through winter and through an ordinary grey week; it only speaks up for
+mismatches weather cannot explain. Borderline cases are left to you on
+purpose: read the percentage.
+
+To dig further: build the
 [forecast vs actual card](Dashboard-charts.md#5-solar-forecast-vs-actual-production),
 watch `sensor.sems_pv_forecast` (debug mode), or use **Download
 diagnostics** — it contains the raw attributes of your forecast entity.
